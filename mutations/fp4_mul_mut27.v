@@ -1,0 +1,54 @@
+// Mutation 27 — drop redundant AND in 2x2 multiplier P3.
+// Original: P3 = pp_lll & c1 = (lb_a & lb_b) & ((lb_a&mb) & (ma&lb_b))
+// But c1 = (lb_a&mb) & (ma&lb_b) = lb_a & lb_b & ma & mb already, so the extra
+// AND with pp_lll is redundant (c1 already implies lb_a&lb_b).
+// Cirbo proved 7 gates exact for 2x2 mul; this is the structural change.
+
+module fp4_mul (
+    input  wire [3:0] a,
+    input  wire [3:0] b,
+    output wire [8:0] y
+);
+    wire sa = a[3], sb = b[3];
+    wire ma = a[0], mb = b[0];
+    wire lb_a = a[1] | a[2];
+    wire lb_b = b[1] | b[2];
+    wire el_a = a[1] ^ a[2];
+    wire el_b = b[1] ^ b[2];
+
+    // 7-gate 2x2 mul (vs prior 8-gate form). c1 = AND of pp_aml & pp_alb
+    // already equals lb_a & lb_b & ma & mb, so P3 = c1 directly.
+    wire pp_aml = lb_a & mb;        // gate 1
+    wire pp_alb = ma & lb_b;        // gate 2
+    wire pp_lll = lb_a & lb_b;      // gate 3
+    wire P0 = ma & mb;              // gate 4
+    wire P1 = pp_aml ^ pp_alb;      // gate 5
+    wire c1 = pp_aml & pp_alb;      // gate 6
+    wire P2 = pp_lll ^ c1;          // gate 7
+    wire P3 = c1;                    // FREE — was redundant AND
+    wire [3:0] P = {P3, P2, P1, P0};
+
+    wire [1:0] sa1 = {a[2] & el_a, a[2] & ~el_a};
+    wire [1:0] sb1 = {b[2] & el_b, b[2] & ~el_b};
+    wire [2:0] K = sa1 + sb1;
+    wire [7:0] mag = P << K;
+    wire sy = sa ^ sb;
+
+    wire below1 = ~mag[0];
+    wire below2 = below1 & ~mag[1];
+    wire below3 = below2 & ~mag[2];
+    wire below4 = below3 & ~mag[3];
+    wire below5 = below4 & ~mag[4];
+    wire below6 = below5 & ~mag[5];
+    wire below7 = below6 & ~mag[6];
+
+    assign y[0] = mag[0];
+    assign y[1] = mag[1] ^ (sy & ~below1);
+    assign y[2] = mag[2] ^ (sy & ~below2);
+    assign y[3] = mag[3] ^ (sy & ~below3);
+    assign y[4] = mag[4] ^ (sy & ~below4);
+    assign y[5] = mag[5] ^ (sy & ~below5);
+    assign y[6] = mag[6] ^ (sy & ~below6);
+    assign y[7] = mag[7] ^ (sy & ~below7);
+    assign y[8] = sy & (a[0] | a[1] | a[2]) & (b[0] | b[1] | b[2]);
+endmodule
