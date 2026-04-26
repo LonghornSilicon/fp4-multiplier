@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.python-version
+.venv/
+venv/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Build / synthesis intermediates
+*.tmp
+/tmp_*
+synth_artifacts/
+synth_artifacts_v/
+synth_remap_artifacts/
+build/
+
+# Logs (kept ledgers in results/, not full logs)
+*.log
+
+# Ignore re-synthesized BLIF copies in lib (only src/ is the canonical)
+lib/out.blif
+
+# Runtime caches
+*.prof
+*.coverage
+
+# Don't ignore the canonical answer
+!src/fp4_mul.blif

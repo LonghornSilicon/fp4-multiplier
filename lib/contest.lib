@@ -1,0 +1,28 @@
+/* Liberty file restricting ABC's tech-mapping to ONLY the legal contest gates:
+   AND2, OR2, XOR2, NOT1. Each costs 1 unit (area = 1). All delays unit. */
+
+library(contest) {
+    cell(NOT1) {
+        area: 1;
+        pin(A) { direction: input; }
+        pin(Y) { direction: output; function: "A'"; }
+    }
+    cell(AND2) {
+        area: 1;
+        pin(A) { direction: input; }
+        pin(B) { direction: input; }
+        pin(Y) { direction: output; function: "(A * B)"; }
+    }
+    cell(OR2) {
+        area: 1;
+        pin(A) { direction: input; }
+        pin(B) { direction: input; }
+        pin(Y) { direction: output; function: "(A + B)"; }
+    }
+    cell(XOR2) {
+        area: 1;
+        pin(A) { direction: input; }
+        pin(B) { direction: input; }
+        pin(Y) { direction: output; function: "(A ^ B)"; }
+    }
+}

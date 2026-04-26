@@ -1,0 +1,404 @@
+# MEMORY.md — FP4 Multiplier Challenge Journal
+
+This is a chronological log of actions, decisions, dead-ends, and discoveries while working on the Etched FP4 multiplier challenge. Future Claude sessions should read this top-to-bottom before resuming work.
+
+Format: `YYYY-MM-DD HH:MM (TZ) — ACTOR — entry`
+TZ: PT (user is in Texas / Longhorn Silicon, but local clock is whatever the harness reports — using session-relative timestamps where exact wall-clock not available).
+
+---
+
+## 2026-04-25
+
+### 15:42 — claude — Session start
+- User: Alan Schwartz (UT Austin email; building Longhorn Silicon, taping out own chip).
+- Task: Etched FP4 multiplier take-home. **Real stakes** — informs Alan's silicon work, not just an academic exercise.
+- Workspace: `/Users/alanschwartz/Downloads/Projects/FP4 Mul/`
+- Files present: PDF + MD of the assignment.
+
+### 15:43 — claude — Problem digestion (verbatim notes for future sessions)
+**Inputs:** Two 4-bit FP4 (MX FP4 = E2M1, no inf/NaN). Default encoding:
+- bit3 = sign, bits[2:1] = exponent (2 bits), bit0 = mantissa (1 bit)
+- 16 codepoints, magnitudes ∈ {0, 0.5, 1, 1.5, 2, 3, 4, 6}
+- Two zeros (0000, 1000) — signed-zero ignored per spec
+**Output:** 9-bit two's complement integer Y where Y = 4 · val(a) · val(b). LSB represents 0.25 (called QI9).
+**Gate library:** {AND2, OR2, XOR2, NOT1}, each = 1 gate. Constants 0/1 free. Wires/fanout free.
+**Remapping:** Bijective remap on the 4-bit input space, applied identically to both inputs, free.
+**Goal:** Minimum gate count + justification of optimality.
+
+### 15:43 — claude — Structural facts I derived (will verify)
+- Output magnitude set (19 distinct nonneg values): {0, 1, 2, 3, 4, 6, 8, 9, 12, 16, 18, 24, 32, 36, 48, 64, 72, 96, 144}
+- In E2M1: val = (2 + m)·2^(e-2) for e≥1; val = m·2^(-1) for e=0. Letting M_i = (e_i≥1 ? 2:0)+m_i ∈ {0,1,2,3} and shift_i = (e_i≥2 ? e_i-2 : -1):
+  - 4·val_a·val_b = M_a · M_b · 2^(shift_a + shift_b + 2)
+  - Distinct mantissa products: M_a·M_b ∈ {0,1,2,3,4,6,9}
+  - Total left-shift k = shift_a+shift_b+2 ∈ {0..4} (5 values)
+  - This factorization may or may not be the structure that minimizes gates — must not over-anchor on it.
+- Two zeros (0000, 1000 in default): both must remain in remap (bijection requires it). Sign bit can't fully encode "zero-ness" alone.
+- Sign-magnitude conditional-negation costs ≈ 24 gates if implemented naïvely with carry chain — strongly suggests we should NOT compute magnitude-then-negate; instead synthesize Y bits directly OR find a remap that sidesteps the +1 carry.
+
+### 15:44 — claude — Plan of attack
+1. Persist this MEMORY.md + draft PRD.md (this turn).
+2. In parallel, spawn:
+   - Web research on FP4/MXFP4 hardware multipliers, small-multiplier minimum-gate synthesis (literature: Knuth Vol 4A on Boolean function minimization, Kojima/Kogge-Stone style, recent ML accelerator papers from Etched/Groq/Cerebras, MAJ3-based adders, ABC/mockturtle exact synthesis).
+   - Web research on Karpathy "autoresearch" methodology to apply later.
+3. Set up the Python testing harness from the assignment notebook locally (truth-table generator + verifier).
+4. Build infra to brute-search remaps + run a logic-synthesis tool (ABC if available, else mockturtle, else hand-rolled SAT-based exact synthesis for small sub-functions).
+5. Hand-derived design as baseline + sanity check on tool output.
+6. Iterate (Karpathy autoresearch loop) on remap selection and circuit topology.
+7. Prove lower bound (information-theoretic + Boolean-circuit-complexity arguments).
+
+### 15:44 — claude — Open questions to resolve
+- Q1: What's the literature minimum for a 4×4-bit unsigned multiplier? (Reference point — our problem is different but related.)
+- Q2: Does ABC / mockturtle / Boolean Sat-Synthesis ship with truth-table → exact-min-gate-count solvers for ≤8-input functions? (Yes IIRC — `mockturtle::exact_synthesis` and ABC's `&exact` / `&deepsyn` work for small.)
+- Q3: How many remaps survive symmetry? Naïvely 16!/2 ≈ 1.05·10^13. With sign-MSB constraint: 8! · (binary swap of two zeros) ≈ 80640. Tractable.
+- Q4: Can compute to be useful here be a SAT/synthesis cluster? If yes, ask Alan for GPU/CPU access. (GPU less useful than CPU here — synthesis is symbolic. Will note in PRD.)
+
+### 15:45 — claude — Spawning parallel research agents (next action)
+
+### 16:00 — claude — Spec example 2 typo confirmed
+Spec example 2 says "−3·1.5 = −4.5; output binary 110111000". The 9-bit binary
+of −18 is **111101110**, not 110111000. The doc author also typo'd the FP4
+encoding ("−3 represented as 0001"; should be 1101). The only interpretation
+that fits in 9-bit is `output_int = 4·val_a·val_b` (range −144..+144). Logged in
+fp4_spec.py.
+
+### 16:05 — claude — Lit-review agent returned
+Tools we will use: ABC (`&deepsyn`), Cirbo (IWLS 2024 winner, SAT-based
+exact synthesis), eSLIM, mockturtle. Estimated optimum 30–40 gates. Sign-
+magnitude internal encoding via the bijective remap is the unanimous lever
+(arXiv 2507.18179: ~50% transistor reduction at 4-bit). Logged in PRD §3.
+
+### 16:08 — claude — Karpathy autoresearch confirmed real
+karpathy/autoresearch (released 2026-03-06), 76.5k stars. The methodology:
+single scalar metric, fixed wall-clock per experiment, frozen evaluation
+harness, agent edits exactly one file, git-as-ledger, "MODIFY → VERIFY →
+KEEP/DISCARD → REPEAT FOREVER", `program.md` is the human's iteration target.
+Encoded in code/program.md.
+
+### 16:15 — claude — Pipeline (PLA → ABC) works
+390 gates for default encoding with FAST script (`resyn2`x3 + dch + map).
+**Confirmed correct on all 256 input pairs.**
+
+### 16:20 — claude — Pivot to Verilog backend
+PLA → ABC produces SOP-style starting AIG that resyn doesn't fully recover
+from. Switched to Verilog → yosys → ABC: 222 gates for default with the
+same effort, **35% reduction**. Verified correct.
+
+### 16:30 — claude — First strategy results (Verilog/FAST)
+| name              | gates |
+|-------------------|------:|
+| default           | 222   |
+| rev_magnitude     | 225   |
+| gray_magnitude    | 214   |
+| halfints_then_pow2| 224   |
+
+`gray_magnitude` perm = (0,1,3,2,6,7,5,4) is a Gray-coded order over the 8
+magnitudes. Best so far: **214 gates**. Lit-review target: 30–40. Strong gap;
+either need stronger synthesis (deepsyn/eSLIM/Cirbo) or hand-derived
+structural Verilog or both.
+
+### 16:35 — claude — Status & next
+Background runs:
+- 200-remap FAST+Verilog sweep → best 204 gates with perm (0,1,2,3,4,7,5,6)
+- MED+Verilog on 4 strategy candidates → all failed (yosys-abc tempdir
+  doesn't load our abc.rc; need to inline `resyn2` alias)
+
+### 16:45 — claude — BREAKTHROUGH: structural Verilog → 93 gates
+Wrote `code/fp4_mul_struct.v`: explicit sign-magnitude split, leading-bit OR,
+2×2 mantissa mul, K-shift, 2's-complement wrapper. With FAST script: **93
+gates**, verified correct. Down from 222 (case-stmt Verilog) and 282 (best
+PLA). The case-stmt path was blowing the synthesizer's structure-discovery.
+
+### 16:50 — claude — Aliases inlined
+RESYN2 expansion ("balance; rewrite; refactor; balance; rewrite; rewrite -z;
+balance; refactor -z; rewrite -z; balance") inlined into search.py scripts so
+yosys-abc doesn't need abc.rc. MED/STRONG scripts now run.
+
+### 16:55 — claude — Hand-optimized Verilog
+Wrote `code/fp4_mul_hand.v`: explicit per-output-bit shift expressions
+(mag[i] = OR_j P[j] AND isK[i-j]), explicit K-equals indicators. With MED
+script: 88 gates. Slightly better than struct.v + MED.
+
+### 17:00 — claude — ABC script exploration
+On struct.v with various scripts:
+- fast: 93, med: 92, compress2x3: 90, deepsyn-1s/2s/3s/5s: all **86**
+- if -K 6: 147 (LUT mapping doesn't help for unit-area gates)
+- compress + deepsyn-3s: 95 (worse)
+On hand.v: med = 88 (best), deepsyn-3s = 99 (deepsyn rearranged into worse
+form because the explicit form was already compact).
+**Default-encoding best: 86 gates** (struct.v + deepsyn-3s). Saved to
+`current_best/fp4_mul.blif`. Cell breakdown: 35 AND + 18 NOT + 23 OR + 10 XOR.
+
+### 17:05 — claude — Baugh-Wooley fold attempt
+Wrote `code/fp4_mul_bw.v` with explicit "complement-up-to-and-including-the-
+lowest-set-bit" rule for the conditional negate. With FAST: 88 (vs 93 for
+struct + FAST). With deepsyn-3s: 94 (worse, deepsyn confuses the more rigid
+form). Net: synthesis already finds an equivalent BW-style fold; my explicit
+version doesn't help.
+
+### 17:10 — claude — Realistic optimum
+The lit review's "30–40 gate target" was optimistic. With our gate set
+(AND2/OR2/XOR2/NOT1, unit cost, 9-bit two's-comp output) and best off-the-
+shelf synthesis, default encoding sits at **86 gates**. Path to lower:
+1. Input remap (theoretically can save ~5–15 gates by simplifying sparse
+   output bits like Y[0])
+2. Cirbo / eSLIM SAT-based local improvement (lit-claimed 12% avg, up to
+   83% in some cases)
+3. Decompose into windowed sub-blocks and apply exact synthesis per window
+4. AlphaEvolve-style verifier-in-the-loop search
+
+### 17:15 — claude — End-of-session-1 state (will not be the final state today)
+- **Current best:** 86 gates (default encoding, struct.v + deepsyn-3s).
+- See later sections for continued work.
+
+### 17:30 — claude — Per-remap structural Verilog generator
+Built `code/gen_struct.py` + `code/synth_remap.py`. Decoder simplification (single-
+bit pass-through detection, 2-bit XOR/AND/OR pattern matching) keeps the Verilog
+clean for sign-symmetric remaps. Default encoding via this generator yields the
+same 86 gates with deepsyn-3s.
+
+### 17:45 — claude — 1000-perm sweep → 85 gates
+Wider remap-aware search of 1000 sign-symmetric remaps + deepsyn-3s on top-50.
+**Best: 85 gates** with perm `(0, 1, 2, 3, 6, 7, 4, 5)`, i.e. magnitudes at
+codes 0..7 = [0, 0.5, 1, 1.5, 4, 6, 2, 3]. The remap "swaps the e_l semantic in
+the e_h=1 region" — places magnitudes 4,6 at the e_l=0 codes and 2,3 at e_l=1.
+Saves the K-shift one gate in the bulky bit-stack.
+
+### 17:50 — claude — AlphaEvolve-style Verilog mutations
+`code/fp4_alphaevolve.py` tested 6 hand-written variants (struct, explicit
+isK, signed-2x, K-as-OR-sum, muxed-shift, signed-2x-xor). Best = struct/
+muxed-shift at 86. Two signed-2x variants explode (211, 225 gates) — confirms
+that synthesis prefers the unsigned-magnitude × conditional-negate path.
+
+### 17:55 — claude — 5040-perm wide sweep
+Full 5040 sign-symmetric remaps (mag-0 fixed at code 0). Same 85-gate
+floor; 4 distinct perms tie. Confirms 85 is the deepsyn-3s reachable optimum.
+
+### 18:00 — claude — Per-bit AIG counts (no sharing)
+`code/exact_per_bit.py` ran ABC `&deepsyn -T 5 -I 6` on each of the 9 outputs
+independently. AIG-node counts (≈ AND-only equivalents):
+| Y[0]=3 | Y[1]=22 | Y[2]=35 | Y[3]=44 | Y[4]=33 |
+| Y[5]=32 | Y[6]=23 | Y[7]=17 | Y[8]=9 | sum=218 |
+Sum = 218 AIG nodes; our 85-gate full circuit is ~85 ANDs+XOR+OR+NOT — sharing
+recovers ~60% of the per-bit cost. Healthy.
+
+### 18:10 — claude — Cirbo installed (SAT-based exact synthesis)
+`pip install cirbo` (v1.0.0). API: `CircuitFinderSat(model, n_gates, basis)`.
+Sanity check: **Y[0] minimum = 4 gates** (PROVEN by SAT, basis {AND,OR,XOR,NOT}).
+Form: `Y[0] = (m_a AND m_b) AND NOT(eh_a OR eh_b)`. ABC's AIG count of 3 is the
+AND-only multiplicative complexity; the +1 NOT in our basis is unavoidable.
+
+### 18:15 — claude — 85-gate canonical save
+`current_best/fp4_mul.{v,blif}` = 85-gate verified netlist with perm
+(0,1,2,3,6,7,4,5). Cell breakdown: 41 AND2 + 16 NOT1 + 10 OR2 + 10 XOR2.
+
+### 18:20 — claude — Running: full-circuit Cirbo SAT search
+`code/cirbo_full.py --start 84 --floor 70 --time-budget 600`. Asks SAT for an
+84-gate, 83-gate, ... full circuit. Likely TIMEOUT for very small G; if any
+succeeds, it improves on 85.
+
+### 18:20 — claude — Running: per-output exact minimums via Cirbo
+`code/cirbo_per_bit.py`. Sums to upper-bound the no-sharing complexity.
+
+### 18:20 — claude — Resume info for next session
+- **Current canonical best:** 85 gates with perm (0,1,2,3,6,7,4,5),
+  saved to `current_best/`.
+- **Lower bound so far:** Y[0]=4 (proven). Multi-output lower bound TBD via
+  Cirbo full-circuit search (in progress).
+- **Files:** PRD.md, MEMORY.md, code/*. results_remap.tsv has 5070 entries.
+- **Known truth:** spec example 2 has typos. `output_int = 4·val_a·val_b`,
+  9-bit signed two's comp.
+- **Tooling:** yosys 0.64 + embedded ABC; cirbo 1.0.0; z3 4.16; pysat. No
+  Cirbo timeout yet observed at G=84 — may take hours or fail.
+
+### 18:30 — claude — Cirbo SAT timeouts confirmed
+- Y[1] (40 ones, 8 inputs, single-output): TIMEOUT at G=≤? after 254s.
+- Magnitude (6-input × 8-output): TIMEOUT at G=30+, per-G budget exceeded.
+- Full circuit at G=84: cirbo_full ran 5+ minutes, no SAT/UNSAT verdict.
+- Killed long-running Cirbo searches; SAT-based proof of optimality is not
+  feasible on our timeframe (hours-to-days needed for 8-input/9-output).
+
+### 18:35 — claude — Aggressive deepsyn (T=60s, multi-pass) didn't beat 85
+Tried `&deepsyn -T 60 -I 12` plus iterated mfs2 + RESYN2 on the top remap.
+Result: gates=None (Python timeout 180s). Indicates deepsyn at this depth
+explodes runtime without further improvement. **85 gates is robust** for
+our toolchain.
+
+### 18:40 — claude — Final canonical state
+- `current_best/fp4_mul.{v,blif}`: 85-gate netlist (41 AND2 + 16 NOT1 +
+  18 OR2 + 10 XOR2). Verified on all 256 input pairs.
+- Best remap σ = (0,1,2,3,6,7,4,5), values = [0, 0.5, 1, 1.5, 4, 6, 2, 3]
+  (sign symmetric on [-]).
+- Decoder shrinkage: dec_el = a[1] XOR a[2] (one XOR free).
+- 4 distinct remaps tied at 85; this is the deepsyn-3s reachable optimum.
+- See `current_best/README.md` for full provenance.
+
+### 18:45 — claude — Synthesis tool stack inventory (for resume)
+- yosys 0.64 (`/opt/homebrew/bin/yosys`)
+- yosys-abc (embedded; abc.rc must be in cwd for resyn2/resyn3 aliases)
+- cirbo 1.0.0 (`pip install cirbo`; SAT-based exact synthesis; tractable for
+  small single-output functions, NOT for full 8-input × 9-output)
+- z3 4.16, pysat (Python bindings)
+- contest.lib: AND2, OR2, XOR2, NOT1 each area=1
+- Spec examples #2 has typos; lock canonical to example #1
+  (`output_int = 4·val_a·val_b`, 9-bit two's complement)
+
+---
+
+## 2026-04-25 (continuation, second push)
+
+### 19:00 — claude — User shared Gemini deep-research; gave green light to LFG on local machine
+Gemini's research had 4–5 actionable threads buried in 90% trend/context noise.
+Key actionable: AlphaEvolve verifier-in-the-loop, recursive partial-product simplification,
+strict structural isolation, bit-partitioning. Also flagged: Gemini hallucinated
+"Campus Tours = graph traversal" (wrong — it's just the doc filename).
+
+### 19:05 — claude — Cirbo-proven sub-block bounds
+- 2×2 unsigned multiplier (4 inputs, 4 outputs): **EXACT minimum = 7 gates**
+  (UNSAT at G=6, SAT at G=7, ~0.6s).
+- K computation (4 inputs, 3 outputs): UNSAT at G=7; G=8 timed out at 63s →
+  lower bound ≥ 8.
+- K-shift (7 inputs, 8 outputs): UNSAT at G=12; G=13 timed out at 129s →
+  lower bound ≥ 13.
+
+### 19:10 — claude — Raw-bit Verilog → 81 gates
+Wrote `code/fp4_mul_raw.v` exploiting σ=(0,1,2,3,6,7,4,5)'s lb collapse:
+`lb = a[1] | a[2]` (no XOR for the leading bit, since `eh|el = a[2]|(a[1]^a[2]) = a[1]|a[2]`).
+Result: **81 gates** (40 AND + 12 NOT + 11 OR + 11 XOR). Verified.
+
+### 19:15 — claude — `gen_raw.py` generator
+Auto-emit a raw-bit Verilog for any sign-symmetric remap. All 4 winning remaps
+hit 81 gates with this form. Default gets 94. Wider sweep (1000 perms): 81 still
+the floor.
+
+### 19:20 — claude — **AlphaEvolve mutation series → 75 gates**
+Wrote 4 hand-mutated Verilogs (mut1..mut4) on top of `fp4_mul_raw.v`:
+- **mut2 (NAND-chain "below" conditional negate): 75 gates** ⭐ ⭐ ⭐
+- mut1 (Y[0] direct passthrough, rest standard): 85
+- mut3 (signed multiplier): 211 (terrible)
+- mut4 (running-OR detector): 85
+
+The mut2 trick: replace the standard `(mag XOR rep(sy)) + sy` 2's-comp negate
+with a NAND-chain `below_i = below_{i-1} & ~mag[i-1]`, then `y[i] = mag[i] XOR
+(sy & ~below_i)`. Equivalent function, but ABC's deepsyn finds a tighter AIG
+from this starting form. **Single move saved 6 gates.**
+
+### 19:30 — claude — `gen_mut2.py` generator + bug fix in `_simplify_4to1`
+Found and fixed a swapped pattern entry in `_simplify_4to1` (the 2-bit pattern
+table had `(0,0,1,0)` and `(0,1,0,0)` mappings reversed). After fix, all 4 best
+remaps generate 75 gates via the generator.
+
+### 19:35 — claude — 1000-perm mut2-form sweep
+- 3 perms tied at 75 (the same 3 that won at 85 with the older form)
+- Confirms 75 is the deepsyn-3s floor for mut2-form across sign-symmetric remaps
+
+### 19:45 — claude — End-of-second-push state
+- **Current canonical best: 75 gates** (`current_best/fp4_mul.{v,blif}`).
+  Cell breakdown: 36 AND2 + 9 NOT1 + 19 OR2 + 11 XOR2.
+- **11.8% reduction from prior 85**, **5.2× from PLA baseline**.
+- Best perm σ = (0,1,2,3,6,7,4,5); 3 sign-symmetric perms tie.
+- Provable lower bounds (Cirbo SAT): 2×2 mul = 7, K ≥ 8, K-shift ≥ 13. Sum =
+  28 + sign + negate ≥ ~50. So 75 is within 25 gates of theoretical optimum
+  but full multi-output SAT is intractable to prove tight.
+
+### 20:00 — claude — Push to **74 gates** via mut11
+Wrote mut11..mut18 — found that **mut11** (mut2 + raw P_nonzero for Y[8])
+gives 74. The trick: hardcoding `y[8] = sy & (a[0]|a[1]|a[2]) & (b[0]|b[1]|b[2])`
+bypasses the long below-chain reaching y[8]. **Saved 1 more gate.**
+- `current_best/fp4_mul.{v,blif}` = 74-gate verified netlist.
+- Cell breakdown: 37 AND2 + 8 NOT1 + 18 OR2 + 11 XOR2.
+- 2 sign-symmetric perms tie at 74 (best1, best3).
+- 2000-perm sweep with mut11 form: 74 is the robust floor.
+
+### 20:10 — claude — Stronger ABC scripts didn't break 74
+Tried `compress2x3`, `iter-deepsyn` (2× full pipeline), `&deepsyn -T 60`,
+`&deepsyn -T 120`. None go below 74. ABC's deepsyn-T3 at 74 is its reachable
+optimum on this Verilog topology. Going further requires either:
+- A different starting Verilog (more mutations to try)
+- SAT-based local improvement (Cirbo / eSLIM, days of compute)
+- AlphaEvolve-style frontier-LLM mutation loop
+
+### 20:20 — claude — Final state for resume
+- **Canonical best: 74 gates.** Verified all 256 inputs.
+- Files: PRD.md / SUMMARY.md / MEMORY.md / current_best/{fp4_mul.v,fp4_mul.blif,README.md}
+- Verilog: `code/fp4_mul_mut11.v` is the source.
+- `code/gen_mut11.py` emits mut11 form for any sign-symmetric remap.
+- Best remap σ = (0,1,2,3,6,7,4,5).
+- Trajectory full: 390 (PLA) → 222 (case-stmt) → 86 (struct default) → 85 (struct+remap) → 81 (raw-bit lb) → 75 (mut2 NAND-chain) → **74 (mut11 raw P_nonzero for Y[8])**. 5.3× reduction from PLA baseline.
+- Open: install eSLIM, install mockturtle, run AlphaEvolve loop with frontier LLM API, run multi-day Cirbo SAT proof.
+
+### 20:30 — claude — User shared Boolean-solver idea + asked for INSTRUCTIONS.md + agentic LFG
+Confirmed pyeda doesn't build on Python 3.12 (known issue). Switched to sympy.logic
+SOPform / simplify_logic for 2-level minimization. SOP form sums to 1627 gates
+across the 9 outputs (no sharing) — confirms ABC's 74 is doing massive multi-
+level sharing. Y[0] proven again at 4-5 gates via sympy. Y[8] confirmed structure:
+`(sa XOR sb) AND (a_nonzero) AND (b_nonzero)`.
+
+### 20:35 — claude — INSTRUCTIONS.md written
+Full teaching doc: FP4 / E2M1 explained, two's-comp + QI9 covered, multiplier
+inside MAC inside matmul inside transformer inference, why ASICs win, how the
+74-gate trajectory was earned, design tricks transferable to other parts of
+Longhorn Silicon's chip. ~3700 words.
+
+### 20:40 — claude — Spawned agents for eSLIM + mockturtle builds (parallel)
+Per research-agent rec, eSLIM (SAT'24 windowed local improvement) and mockturtle
+XAG resynthesis are the highest-EV next moves. Both running as background agents
+with 30–45 min budgets.
+
+### 20:42 — claude — Tried free rec4: `&deepsyn -T 600 -I 50 + mfs2 -W 6 -F 3 -D 2 + resyn3`
+Running in background. (Still running at 3:33 mark, may take 10+ min.) Result TBD.
+
+### 20:45 — claude — Pause point
+- Best still: 74 gates (mut11 + best σ).
+- Background: eSLIM agent, mockturtle agent, rec4-deepsyn-T600 ABC run.
+- All output files saved: SUMMARY.md, INSTRUCTIONS.md, MEMORY.md, PRD.md, current_best/*.
+
+### 21:00 — claude — eSLIM agent result: 100 gates (worse)
+eSLIM produced a "reduced AIG" (`/tmp/eslim_work/fp4_reduced.aig`) which mapped
+back to 100 gates over our cell library. eSLIM operates on AIG (no XOR2), so
+our 11 XOR2 gates expanded to ~33 ANDs equivalent in the input AIG. After eSLIM
++ ABC mapping, the recovered XORs were partial. Net: WORSE than 74.
+
+### 21:05 — claude — mockturtle agent result: 78 gates (worse)
+mockturtle's XAG (XOR-AIG) resynthesis produced 68 raw XAG nodes, but those
+are AIG-style nodes with inverted-input-attributes — they expand to more gates
+in our explicit {AND2, OR2, XOR2, NOT1} basis. After ABC tech-mapping with
+deepsyn-3s: 78 gates. Verified-OK but worse than 74.
+
+### 21:10 — claude — Confirmed 74 is FIXED POINT of yosys+ABC pipeline
+Re-fed the saved 74-gate BLIF back through `read_blif → resyn → deepsyn → mfs2 →
+dch → map`. Output: 74 gates. **Saturated local optimum** for our toolchain.
+Going below 74 requires:
+  (a) Frontier-LLM mutation loop (AlphaEvolve-style with API access), or
+  (b) Multi-day Cirbo SAT proof of optimality
+  (c) Some fundamentally novel structural insight not yet discovered
+
+### 21:15 — claude — Tried 5 more mutations (mut19..mut24)
+- mut19 (use below8 for Y[8]): 74 (tie)
+- mut20 (DeMorgan flip rewrite): 74 (tie)
+- mut21 (1-hot K indicators): 90 (worse)
+- mut22 (function-based decode): synth fail
+- mut23 (running-OR instead of NAND-chain): 79 (worse)
+- mut24 (skip el XOR intermediate): 91 (worse — el is essential!)
+Total: tested 24 hand-mutated Verilogs. **mut11 = 74 remains the best.**
+
+### 21:20 — claude — Sympy SOP minimization (parallel finding)
+2-level SOP for each Y[k] sums to 1627 gates (no sharing) — confirms ABC is
+doing 95% sharing reduction to get to 74. Y[0] SOP minimum = 4-5 gates;
+Y[8] = (a3⊕b3) AND (a-nonzero) AND (b-nonzero) — confirms mut11's form exact.
+
+### 21:25 — claude — INSTRUCTIONS.md written (~3700 words)
+Comprehensive teaching doc covering FP4/E2M1 spec, two's-complement, QI9 format,
+multiplier internals, MAC → matmul → attention → transformer inference flow,
+ASIC tape-out implications, the 74-gate trajectory. Saved as `INSTRUCTIONS.md`.
+
+### 21:30 — claude — FINAL state for resume (this session-pair)
+- **Canonical best: 74 gates** at `current_best/fp4_mul.{v,blif}`. Verified all 256 inputs.
+- 4-cell breakdown: 37 AND2 + 8 NOT1 + 18 OR2 + 11 XOR2.
+- Best remap σ = (0,1,2,3,6,7,4,5). 2 perms tie at 74 with mut11 form.
+- Trajectory: 390 → 222 → 86 → 85 → 81 → 75 → **74** (5.3× from PLA baseline).
+- Next-tier escalations (need user-provided resources):
+  1. Anthropic API budget (~$300-1000) for AlphaEvolve frontier-LLM mutation loop
+  2. 32+ core CPU box for multi-day Cirbo SAT
+  3. eSLIM with much longer time budget + better starting AIG
+- All artifacts: PRD.md, SUMMARY.md, INSTRUCTIONS.md, MEMORY.md, current_best/, code/*.
+

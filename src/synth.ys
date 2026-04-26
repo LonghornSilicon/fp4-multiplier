@@ -1,0 +1,8 @@
+# Reproduce the canonical 74-gate fp4_mul.blif from fp4_mul.v
+# Run from src/ directory (or adjust paths).
+read_verilog fp4_mul.v
+hierarchy -top fp4_mul
+proc; opt; flatten; opt -full; techmap; opt
+abc -liberty contest.lib -script "+strash;,ifraig;,scorr;,dc2;,strash;,balance;,rewrite;,refactor;,balance;,rewrite;,rewrite,-z;,balance;,refactor,-z;,rewrite,-z;,balance;,&get,-n;,&deepsyn,-T,3,-I,4;,&put;,logic;,mfs2;,strash;,dch,-f;,map,-a,-B,0"
+write_blif fp4_mul.blif
+stat -liberty contest.lib
