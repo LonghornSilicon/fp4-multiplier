@@ -555,3 +555,23 @@ Total: 22 distinct eSLIM configurations, all converge to 65 contest cells minimu
 - Best alternates (also 65): `/tmp/eslim_work/run_a_1200s_gates.blif`, `iter3_65_strict_gates.blif`, `iter2_65_s10_a_gates.blif`, `sweep_internal_s10_gates.blif`.
 - All sweep results saved at `/tmp/eslim_work/` (will be wiped on reboot — important artifacts preserved in repo).
 
+### 09:00 — claude — Overnight 6-job batch finished, 65 floor confirmed at 28 configs
+6 long jobs (7200s each = 2hr budget):
+- overnight_70_s8_long: 70 -> 60 internal -> 68 contest
+- overnight_70_s8_seed2: 70 -> 58 internal -> **65 contest** (TIE, alt cell mix)
+- overnight_70_s10_long: 70 -> 60 internal -> 72 contest (size 10 hurts)
+- overnight_65_s8_long: 65 -> 58 internal -> 67 contest
+- overnight_65_s10_long: 65 -> 60 internal -> 66 contest
+- overnight_74_s8_long: 74 -> 64 internal -> 68 contest
+
+Total 28 distinct eSLIM SAT-mode configurations explored. All converge to >= 65 contest cells. **65 is the eSLIM-saturation floor for this problem at this contest cost metric.**
+
+Adding another 65-gate alternate (overnight_70_s8_seed2): cells = 26 AND, 10 OR, 22 XOR, 7 NOT — different mix from canonical (25 AND, 12 OR, 21 XOR, 7 NOT). Same total.
+
+### 09:05 — claude — Honest path-forward assessment
+The remaining moves to break 65 (in expected-value order):
+1. **AlphaEvolve LLM mutation loop with frontier model** — was the highest-EV path identified; needs API budget. The user is asleep; I am the LLM but my marginal cost per iteration is high. One focused attempt only.
+2. **Mockturtle XAG resynthesis** — requires writing a C++ wrapper around the header-only library. ~1-2 hours of work; uncertain payoff (prior attempt got 78).
+3. **Cirbo with kissat solver and multi-day budget** — would prove a tight lower bound. Not feasible in this session.
+4. **Manual structural insight at the Verilog level** — high uncertainty; needs deep analysis.
+
