@@ -391,14 +391,65 @@ Comprehensive teaching doc covering FP4/E2M1 spec, two's-complement, QI9 format,
 multiplier internals, MAC → matmul → attention → transformer inference flow,
 ASIC tape-out implications, the 74-gate trajectory. Saved as `INSTRUCTIONS.md`.
 
-### 21:30 — claude — FINAL state for resume (this session-pair)
-- **Canonical best: 74 gates** at `current_best/fp4_mul.{v,blif}`. Verified all 256 inputs.
-- 4-cell breakdown: 37 AND2 + 8 NOT1 + 18 OR2 + 11 XOR2.
-- Best remap σ = (0,1,2,3,6,7,4,5). 2 perms tie at 74 with mut11 form.
-- Trajectory: 390 → 222 → 86 → 85 → 81 → 75 → **74** (5.3× from PLA baseline).
-- Next-tier escalations (need user-provided resources):
-  1. Anthropic API budget (~$300-1000) for AlphaEvolve frontier-LLM mutation loop
-  2. 32+ core CPU box for multi-day Cirbo SAT
-  3. eSLIM with much longer time budget + better starting AIG
-- All artifacts: PRD.md, SUMMARY.md, INSTRUCTIONS.md, MEMORY.md, current_best/, code/*.
+### 21:30 — claude — End-of-third-push state
+- 74 gates. Repo reorganized into clean structure (src/, lib/, mutations/,
+  experiments_external/, results/, docs/, reference/). Pushed to
+  https://github.com/LonghornSilicon/fp4-multiplier (public).
+
+### 22:00 — claude — 🚀 BREAKTHROUGH: eSLIM agent → **70 GATES VERIFIED**
+The eSLIM build agent (spawned earlier and running in background) returned with
+a **70-gate netlist verified-OK on all 256 input pairs**. Key facts:
+
+- Canonical best: **70 gates** = 30 AND2 + 10 OR2 + 21 XOR2 + 9 NOT1.
+- 5.6× from PLA baseline; 5.4% better than the 74-gate ABC-deepsyn fixed point.
+- Saved to `src/fp4_mul.blif` (promoted from `experiments_external/eslim/fp4_mul.blif`).
+- The prior 74-gate ABC result preserved at `experiments_external/abc-deepsyn-74gate/`.
+
+### 22:05 — claude — Why eSLIM beat ABC's deepsyn
+**Decisive config:** `--syn-mode sat` (NOT `--aig`). AIG mode forces our 11
+XOR2 gates to expand to 3 ANDs each; ABC's `dch -f` couldn't recover the XOR
+patterns when re-mapping back to {AND2, OR2, XOR2, NOT1}, giving 91-94 gates
+WORSE than 74. Non-AIG SAT mode treats XOR2 as a primitive; eSLIM's windowed
+SAT-proven local replacements then find improvements that respect the XOR-
+friendly cost. After 240s of SAT search, eSLIM produced a 61-gate netlist
+over an extended basis (incl. AND-with-one-negated-input), which translated
+back to 30+10+21+9 = 70 contest cells.
+
+### 22:10 — claude — Build details (saved as docs)
+eSLIM build on macOS arm64 needed two fixes:
+  1. `pip install pybind11 bitarray`
+  2. APFS filesystem hack: rename uppercase header-shadowing files in
+     `aiger/` (`VERSION`, `FORMAT`, etc.) so they don't collide with C++
+     `<version>`, `<format>` stdlib headers.
+After that, CaDiCaL + AIGER + relationSynthesiser .so modules built cleanly.
+
+### 22:15 — claude — Updated repo + push to GitHub
+- README.md: 74 → 70 gates throughout
+- src/README.md: rewrote for 70-gate result + eSLIM trajectory
+- experiments_external/eslim/README.md: full writeup of the win + reproduction
+- experiments_external/eslim/scripts/: blif_to_aig.py, eslim_to_gates.py, classify_gates.py
+- experiments_external/abc-deepsyn-74gate/: prior 74-gate canonical preserved
+- Committed and pushed to LonghornSilicon/fp4-multiplier.
+
+### 22:20 — claude — FINAL FINAL state for resume
+- **Canonical best: 70 gates** at `src/fp4_mul.{v,blif}`. Verified 256/256.
+- Cell breakdown: 30 AND2 + 10 OR2 + 21 XOR2 + 9 NOT1 = 70.
+- Best remap σ = (0,1,2,3,6,7,4,5).
+- Trajectory: 390 → 222 → 86 → 85 → 81 → 75 → 74 → **70** (5.6× from PLA baseline).
+- Public repo: https://github.com/LonghornSilicon/fp4-multiplier
+- Lessons that generalize for Longhorn Silicon's other blocks:
+  1. Don't `read_pla` if you can write structural Verilog — gives synthesis
+     the right level of structure (390 → 86, biggest single win).
+  2. Algebraic identities at the source level matter (`a|(a^b) = a|b` saves
+     gates that ABC won't auto-discover).
+  3. NAND-chain "below_i" structure beats running-OR for two's-comp negate
+     in our specific gate cost model.
+  4. **Don't reduce to AIG before optimizing if your gate library has XOR2
+     as a primitive.** AIG-based tools (eSLIM AIG mode, basic mockturtle)
+     give worse results because XOR2 = 3 ANDs in AIG. Use the tool's native
+     XOR-aware mode (eSLIM `--syn-mode sat`, mockturtle XAG, ABC with
+     `&fx` factoring).
+  5. SAT-based windowed local improvement (eSLIM SAT mode) beats heuristic
+     deepsyn on small arithmetic circuits where XOR matters. ~240s solver
+     time for ~5% gate reduction over `&deepsyn` saturation.
 

@@ -108,7 +108,7 @@ Most useful arithmetic in ML is *not* a single multiplication — it's a **dot p
 acc = a[0]·b[0] + a[1]·b[1] + ... + a[N-1]·b[N-1]
 ```
 
-Hardware MACs do this in one tightly-pipelined cell: a multiplier (our 74 gates) feeds an adder, the adder writes back to an accumulator register. Then the next pair feeds in.
+Hardware MACs do this in one tightly-pipelined cell: a multiplier (our 70 gates) feeds an adder, the adder writes back to an accumulator register. Then the next pair feeds in.
 
 The reason we output 9-bit two's complement (signed integer) instead of FP4 directly is exactly so the accumulator can use a fast integer adder rather than a slow FP-aligned-add. The footnote in the contest doc spelled this out.
 
@@ -169,7 +169,7 @@ A transformer-only ASIC (Sohu) goes the other direction: kill the flexibility, d
 
 ---
 
-## 5. How we got from 390 to 74 gates
+## 5. How we got from 390 to 70 gates
 
 ### 5.1 The naive approach (390 gates)
 
@@ -207,23 +207,29 @@ The MSB of a 9-bit signed result is 1 iff the result is negative. A negative res
 
 Express that directly in raw input bits and ABC saves one more gate by skipping the long below-chain reaching the sign output. **74 gates.**
 
-### 5.8 The cell breakdown of the 74-gate result
+### 5.8 eSLIM SAT-based windowed local improvement (70 gates)
+
+ABC's `&deepsyn` is a heuristic optimizer — it converges to a deterministic local optimum (in our case, 74 gates). Re-feeding the 74-gate netlist back through ABC returns 74. **It's saturated.**
+
+To go below 74, we used [eSLIM](https://github.com/fxreichl/eSLIM) (SAT 2024 paper by Reichl/Slivovsky), a fundamentally different optimizer. eSLIM does **SAT-proven windowed local improvement**: for every k-gate window in the circuit, it asks SAT "is there a smaller equivalent sub-circuit for this window?" — if yes, replaces. Iterates until no further improvement.
+
+Critical configuration: `--syn-mode sat` (NOT `--aig`). AIG mode forces our 11 XOR2's to expand to 3 ANDs each (since AIG = AND/NOT only); after eSLIM compressed the AIG and ABC tried to remap back to {AND, OR, XOR, NOT}, the XOR patterns weren't fully recovered, giving 91–94 gates *worse* than 74. Non-AIG SAT mode preserves XOR2 as a basis primitive.
+
+**Result: 70 gates** in 240 sec of SAT solver time on the 74-gate input.
+
+### 5.9 The cell breakdown of the 70-gate result
 
 | Cell type | Count |
 |:---|---:|
-| AND2 | 37 |
-| OR2  | 18 |
-| XOR2 | 11 |
-| NOT1 | 8  |
-| **Total** | **74** |
+| AND2 | 30 |
+| OR2  | 10 |
+| XOR2 | 21 |
+| NOT1 | 9  |
+| **Total** | **70** |
 
-11 XOR2's: 1 for sign, 2 for input `el = a[1]^a[2]` and `b[1]^b[2]`, 2 in the 2×2 mantissa multiplier, 7 for the conditional-negate `y[i] = mag[i] ^ flip[i]`. That's exactly 1+2+2+7 = 12, with sharing collapsing to 11.
+eSLIM's optimization significantly **rebalanced the cell mix** — 7 fewer ANDs, 8 fewer ORs, 10 *more* XORs. The SAT-proven local replacements found compact XOR-based sub-circuits that ABC's heuristic resub didn't see.
 
-37 ANDs: most go to the K-shift, the partial-product multiplications, and the `sy AND ~below_i` flips.
-
-18 ORs: leading-bit ORs, K-sum carries, the explicit Y[8] OR-tree, sharing across the magnitude shifter.
-
-8 NOTs: roughly one per input bit that gets used in a "polarity flip" pattern.
+**Lesson transferable to other Longhorn Silicon blocks:** if your gate library has a native XOR (cost ~ AND), don't reduce to AIG before optimizing. Use XOR-aware tools (eSLIM SAT mode, mockturtle XAG, ABC `&fx`).
 
 **Forward link →** That's the engineering. Next: how to actually use the design.
 
@@ -298,7 +304,7 @@ python3 code/cirbo_subblocks.py shift   # K-shift
 
 ## 7. The big picture (and what to ask Claude next)
 
-1. **You now know what the multiplier does, where it sits in inference, and how the 74 gates were earned.** That's the engineering content of this project.
+1. **You now know what the multiplier does, where it sits in inference, and how the 70 gates were earned.** That's the engineering content of this project.
 
 2. **The path lower than 74 likely needs SAT-based local improvement (eSLIM) or LLM-driven mutation search (AlphaEvolve loop with a frontier coder API).** Both are spawned as agents in this session — check `MEMORY.md` for the latest.
 

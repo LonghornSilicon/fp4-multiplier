@@ -1,25 +1,65 @@
-# eSLIM Experiment
+# eSLIM Experiment — 70 Gates ⭐
 
-eSLIM (SAT 2024 paper "eSLIM: Circuit Minimization with SAT-Based Local Improvement"
-by Reichl/Slivovsky) was run on our 74-gate AIG with a 600-second budget.
+eSLIM ([SAT 2024 paper "eSLIM: Circuit Minimization with SAT-Based Local Improvement"](https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.SAT.2024.23) by Reichl/Slivovsky, [GitHub](https://github.com/fxreichl/eSLIM)) was run on our 74-gate ABC-deepsyn output and **reduced it to 70 gates verified-OK on all 256 input pairs.**
 
-**Result:** 100 gates after re-mapping back to {AND2, OR2, XOR2, NOT1}.
+This is the canonical result. See `../../src/fp4_mul.blif` for the promoted version.
 
-## Why worse than 74?
+## Result
 
-eSLIM operates on AIG (no native XOR2). Our 74-gate netlist has 11 XOR2's,
-each of which expands to ~3 ANDs in AIG. eSLIM tried to compress the 176-AND
-input AIG to 168 ANDs, but ABC's `dch -f` couldn't fully recover the XOR
-patterns when re-mapping to our 4-cell library.
+**70 gates** = 30 AND2 + 10 OR2 + 21 XOR2 + 9 NOT1.
 
-## Files (if present)
+## Why eSLIM beat ABC's `&deepsyn` here
 
-- `fp4_reduced.aig`: eSLIM's optimized AIG output
-- `blif_to_aig.py`: utility to convert our BLIF to AIG for eSLIM input
+ABC's `&deepsyn` is heuristic and converges to a deterministic local optimum (74 gates was a fixed point — we re-fed the BLIF back through and got 74 again).
 
-## Lesson
+eSLIM is fundamentally different: it does **SAT-proven local improvement on small windows**. For each window of size ≤ k gates, it asks SAT "is there a smaller equivalent sub-circuit?" — and if yes, replaces it. Iterates until no further improvement exists. This is exactly the "creative non-deterministic search" that breaks deterministic local optima.
 
-SAT-based local-improvement on AIG is the wrong basis for our problem because
-our cell library natively supports XOR2 (cost 1). Tools that work on XAG
-(XOR-AIG) like mockturtle are a closer fit, but mockturtle also gave 75-78
-on this particular benchmark.
+## Critical configuration
+
+The decisive choice was `--syn-mode sat` (and **NOT** `--aig`). Reasoning:
+
+- AIG mode treats the netlist as AND/NOT only. Our 11 XOR2 gates must expand to 3 ANDs each, inflating the working AIG by ~22 nodes. eSLIM then does great work shrinking the AIG, but `dch -f; map -a -B 0` re-mapping back to {AND2, OR2, XOR2, NOT1} can't recover the XOR patterns and we lose the gain. AIG-mode runs gave 91–94 gates, worse than 74.
+- SAT mode (non-AIG) preserves XOR2 as a primitive in the working representation. eSLIM's windowed SAT replacements then find improvements that respect the XOR-friendly cost.
+
+## Build
+
+```bash
+git clone https://github.com/fxreichl/eSLIM.git /tmp/eSLIM
+cd /tmp/eSLIM
+pip install pybind11 bitarray
+# macOS APFS hack: rename uppercase header-shadowing files in aiger/
+for f in VERSION FORMAT LICENSE README TODO; do
+  mv aiger/$f aiger/${f}.txt
+done
+# Build
+cd src/bindings && cmake -B build && cmake --build build -j
+```
+
+## Run
+
+```bash
+# Convert our subckt-style BLIF to flat .names BLIF (eSLIM doesn't grok .subckt)
+cd /tmp/eslim_work
+python3 blif_to_aig.py fp4_mul.blif fp4_flat.blif
+# Run eSLIM
+PYTHONPATH=/tmp/eSLIM/src/bindings/build python3 /tmp/eSLIM/src/reduce.py \
+    fp4_flat.blif fp4_reduced.blif 240 --syn-mode sat
+# Translate eSLIM output back to {AND2, OR2, XOR2, NOT1} contest cells
+python3 eslim_to_gates.py fp4_reduced.blif fp4_mul.blif
+# Verify
+cd "$REPO/lib" && python3 -c "
+from verify import verify_blif
+from remap import encoding_from_magnitude_perm
+v = encoding_from_magnitude_perm((0,1,2,3,6,7,4,5))
+ok, _ = verify_blif('../experiments_external/eslim/fp4_mul.blif', values=v)
+print('verify:', 'OK' if ok else 'FAIL')
+"
+```
+
+## Lesson learned
+
+For our specific contest cost metric (XOR2 = 1 unit, same as AND2/OR2/NOT1), **non-AIG SAT-based windowed minimization beats heuristic AIG-based deepsyn** by ~5%. This generalizes: if your gate library has a primitive XOR (true for most ASICs at standard-cell level), don't reduce to AIG before optimizing.
+
+## Files
+
+- `fp4_mul.blif` — the 70-gate verified netlist (now also in `../../src/fp4_mul.blif`)

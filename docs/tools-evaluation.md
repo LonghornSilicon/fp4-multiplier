@@ -11,11 +11,17 @@ Empirical results from this session. Useful for future Longhorn Silicon work; in
 | **Cirbo 1.0.0** | SAT-based exact synthesis | proves Y[0]=4 (1.6s), 2×2 mul=7 (0.6s) | Tractable for ≤6-input single-output and ≤4-input multi-output. **NOT tractable** for 8-input × 9-output full circuit. |
 | **sympy.logic** | 2-level SOP minimization | confirms ABC's sharing efficiency | Per-bit SOP totals 1627 gates no-share vs ABC's 74 with share = 95% sharing recovered. Y[0] SOP confirms minimum 4 gates. |
 
+## Tool that broke 74 → 70 ⭐
+
+| Tool | What we tried | Result | Why it worked |
+|---|---|---|---|
+| **eSLIM (SAT 2024) `--syn-mode sat`** | Built from source, ran on flat-BLIF version of 74-gate netlist for 240s | **70 gates verified** | SAT-based windowed local improvement. The KEY was running in NON-AIG mode (preserves XOR2 in basis). 240s of SAT solver windowed minimization found 4 gates ABC's heuristic deepsyn missed. |
+
 ## Tools that didn't beat 74
 
 | Tool | What we tried | Result | Why it didn't help |
 |---|---|---|---|
-| **eSLIM (SAT 2024)** | Built from source, ran on 74-gate AIG | 100 gates after re-mapping | eSLIM operates on AIG (no XOR2). Our 11 XOR2's expanded to ~33 ANDs in AIG; ABC's `dch -f` couldn't fully recover them after eSLIM's local rewrites. |
+| **eSLIM (SAT 2024) `--aig`** | AIG mode of the same tool | 91–94 gates | AIG mode reduces XOR2 to 3 ANDs, defeating the cost-aware optimization. Don't use AIG mode when your gate library has native XOR2. |
 | **mockturtle XAG resynthesis** | Built from source, ran `cut_rewriting + xag_minmc_resynthesis` | 78 gates after re-mapping (raw XAG = 68 nodes) | XAG nodes don't 1:1 to our 4-cell library — inverter edges in XAG become explicit NOT1 in {AND,OR,XOR,NOT}. Inflates on tech-map. |
 | **pyeda** | `pip install pyeda` | Build failed (Python 3.12 incompatibility) | Sympy is the working substitute. |
 | **ABC `compress2x3`** | Strong-rewrite ABC script | 77 gates (worse) | Different local optimum; doesn't beat deepsyn. |

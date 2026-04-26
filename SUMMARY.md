@@ -14,11 +14,11 @@
 
 | | |
 |---|---|
-| **Total gate count** | **74** |
-| AND2 | 37 |
-| NOT1 | 8 |
-| OR2  | 18 |
-| XOR2 | 11 |
+| **Total gate count** | **70** |
+| AND2 | 30 |
+| NOT1 | 9 |
+| OR2  | 10 |
+| XOR2 | 21 |
 | Verified | ✅ all 256/256 input pairs |
 | Synthesis flow | yosys 0.64 → ABC `&deepsyn -T 3 -I 4` |
 | Wall time to synthesize | ~13 sec (M-series, single thread) |
@@ -36,7 +36,7 @@
 | + mut2 NAND-chain "below" detector | 75 | replaces +1 carry chain |
 | + mut11 raw P_nonzero for Y[8] | **74** | bypasses long below-chain for sign output |
 
-**5.3× reduction from naive PLA baseline.** **13.5% reduction** over the prior 85-gate result.
+**5.6× reduction from naive PLA baseline.** **17.6% reduction** over the prior 85-gate published-style result. **70 ↓ from 74** via eSLIM SAT-based windowed local improvement (last step in the trajectory).
 
 ### Winning input remap
 σ = (0,1,2,3,6,7,4,5) on magnitudes; sign-MSB preserved. Codepoint table:

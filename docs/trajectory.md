@@ -1,4 +1,4 @@
-# Trajectory: 390 → 74 Gates
+# Trajectory: 390 → 70 Gates
 
 A round-by-round log of what each step did, why it worked, and how big the win was. Useful as a reference for the same kind of optimization on other Longhorn Silicon blocks.
 
@@ -100,6 +100,27 @@ This is literally "result is negative iff signs differ AND both inputs are nonze
 - **Random non-sign-symmetric remaps**: ≥ 140 gates (sign-symmetry strictly preferred).
 - **5040 + 2000 + 1000 sign-symmetric remap sweeps** with the mut11 form: 74 floor across all.
 
-## Saturated fixed-point
+## Saturated fixed-point at 74
 
-Re-feeding the 74-gate BLIF through `read_blif → resyn → deepsyn → mfs2 → dch → map` returns 74. **It is a deterministic local optimum.** Going below requires non-deterministic creative search (frontier-LLM mutation loop, multi-day SAT, or hand-found structural insight not yet discovered).
+Re-feeding the 74-gate BLIF through `read_blif → resyn → deepsyn → mfs2 → dch → map` returns 74. **It is a deterministic local optimum** for ABC's heuristic optimizer.
+
+## Round 7 — eSLIM SAT-based windowed local improvement (70 gates) ⭐
+
+**What:** Built [eSLIM](https://github.com/fxreichl/eSLIM) (SAT 2024 paper "eSLIM: Circuit Minimization with SAT-Based Local Improvement" by Reichl/Slivovsky) from source on macOS arm64. Ran on the 74-gate netlist with `--syn-mode sat` for 240 seconds. Translated the output back from eSLIM's basis (which includes "AND with one negated input" gates) to our contest 4-cell library by emitting shared NOT1 gates.
+
+**Result: 70 gates.** Cell breakdown: 30 AND2 + 10 OR2 + 21 XOR2 + 9 NOT1.
+
+**Why much better (-4 gates):** ABC's `&deepsyn` is a heuristic that converges to a deterministic local optimum (74 in our case). eSLIM is fundamentally different — it does SAT-proven local improvement on small windows, asking "is there a smaller equivalent sub-circuit for this k-gate window?" If yes, replaces. Iterates. The replacements are *provably* minimal at the window level, which lets it escape ABC's local optimum.
+
+**Critical config — non-AIG mode:** Tested both `--aig` and `--syn-mode sat`. AIG mode forced our 11 XOR2 gates to expand to 3 ANDs each (since AIG is AND/NOT only); after eSLIM compressed the AIG and ABC tried to remap back to {AND, OR, XOR, NOT}, the XOR patterns weren't fully recovered. Result: 91–94 gates, *worse* than 74. Non-AIG SAT mode preserves XOR2 as a basis primitive and is the right choice when your cost metric counts XOR2 = 1 unit.
+
+**Lesson (transferable to Longhorn Silicon):** Don't reduce to AIG before optimizing if your standard cell library has a native XOR2 (cost ≈ AND2). AIG-based tools (basic ABC modes, AIG-only mockturtle, eSLIM `--aig`) give worse results. Use XOR-aware modes: eSLIM `--syn-mode sat`, mockturtle XAG, ABC's `&fx` factoring extraction.
+
+## Saturated fixed-point at 70
+
+Re-running eSLIM on the 70-gate netlist with another 240s budget gives 70 (no further improvement on this window size). Going below 70 likely requires:
+- Larger window size in eSLIM (k=4 → k=5 or 6, with much longer SAT solver time)
+- Multi-day Cirbo SAT for a global proof
+- A novel structural insight at the Verilog level
+
+That said: 70 gates is a 5.6× reduction from the naïve baseline and a 17.6% improvement over the published-style 85-gate result. Solid stopping point.

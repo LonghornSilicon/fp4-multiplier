@@ -1,37 +1,37 @@
-# Canonical FP4 Multiplier — 74 Gates
+# Canonical FP4 Multiplier — 70 Gates
 
-Best verified FP4 multiplier netlist found so far. Verified correct on all 256 input pairs.
+Best verified FP4 multiplier netlist: **70 gates** over the contest gate library {AND2, OR2, XOR2, NOT1}, each = 1 unit. Verified correct on all 256 input pairs.
 
 ## Result
 
 | Metric | Value |
 |---|---|
-| **Total gate count** | **74** |
-| AND2 | 37 |
-| OR2  | 18 |
-| XOR2 | 11 |
-| NOT1 | 8 |
+| **Total gate count** | **70** |
+| AND2 | 30 |
+| OR2  | 10 |
+| XOR2 | 21 |
+| NOT1 | 9 |
 | Verified on all 256 input pairs | ✅ |
-| Synthesis flow | yosys 0.64 → ABC `&deepsyn -T 3 -I 4` |
-| Wall time | ~13 sec |
+| Synthesis flow | yosys → ABC `&deepsyn` (→ 74) → eSLIM `--syn-mode sat` (→ 70) → re-map to {AND2,OR2,XOR2,NOT1} |
 
-## Trajectory (this session)
+## Trajectory
 
-| Stage | Gates | Win |
-|---|---:|---|
-| PLA + ABC FAST | 390 | — |
-| Behavioral Verilog (case-stmt) | 222 | yosys structural elaboration |
-| Structural Verilog (default encoding) + deepsyn-3s | 86 | sign-mag split exposed to ABC |
-| Structural + best remap σ + deepsyn-3s | 85 | XOR-decoded el reduces decoder |
-| Raw-bit Verilog (lb collapsed) | 81 | algebraic identity `a\|(a^b)=a\|b` |
-| mut2 (NAND-chain "below" detector) | 75 | replaces +1 carry chain |
-| **mut11 (mut2 + raw P_nonzero for Y[8])** | **74** | bypasses long below-chain for sign-bit |
+| Stage | Gates |
+|---|---:|
+| PLA + ABC FAST | 390 |
+| Behavioral case-stmt Verilog | 222 |
+| Structural Verilog (default encoding) + ABC | 86 |
+| Best remap σ + ABC `&deepsyn -T 3 -I 4` | 85 |
+| Raw-bit `lb = a[1]\|a[2]` collapse | 81 |
+| mut2 NAND-chain conditional negate | 75 |
+| mut11 raw P_nonzero direct-route Y[8] | 74 |
+| **eSLIM SAT-based local improvement** | **70** |
 
-5.3× reduction from naïve PLA baseline; **13.5% reduction over the 85-gate prior result.**
+5.6× reduction from naive PLA baseline.
 
 ## Input Remap σ = (0,1,2,3,6,7,4,5)
 
-Applied identically to both ports. Sign symmetric (sign at MSB):
+Sign-symmetric (sign at MSB), magnitude permutation:
 
 | 4-bit code | value | | 4-bit code | value |
 |:---:|:---:|---|:---:|:---:|
@@ -44,29 +44,29 @@ Applied identically to both ports. Sign symmetric (sign at MSB):
 | 0110 | +2   | | 1110 | -2   |
 | 0111 | +3   | | 1111 | -3   |
 
-Two distinct sign-symmetric remaps tie at 74 with mut11 form.
+## How the 74→70 reduction was achieved
 
-## Key design tricks
+eSLIM ([SAT 2024 paper](https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.SAT.2024.23) by Reichl/Slivovsky) is a SAT-based local-improvement tool. Critical configuration choice:
 
-1. **Sign-magnitude internal representation** (sign at MSB, raw magnitude path)
-2. **Input remap σ** — XOR-decoded `el = a[1] XOR a[2]` lets `lb = a[1] | a[2]` (no decoder XOR for the leading-bit OR; saved by algebraic identity `a OR (a XOR b) = a OR b`)
-3. **2×2 mantissa multiplier** — provably optimal at 7 gates (Cirbo SAT-confirmed: G=6 UNSAT, G=7 SAT)
-4. **Variable shift** — `mag = P << K`, K ∈ {0..4}, where K = sa1 + sb1 with sa1, sb1 ∈ {0,1,2}
-5. **mut2 NAND-chain conditional negate** — `below_i = below_{i-1} & ~mag[i-1]`, then `y[i] = mag[i] XOR (sy & ~below_i)`. Replaces standard 2's-comp +1 ripple-carry. **Saved 6 gates** vs `xord + sy`.
-6. **mut11 raw-bit Y[8] route** — `y[8] = sy & (a[0]\|a[1]\|a[2]) & (b[0]\|b[1]\|b[2])` directly from inputs. Avoids the long below-chain reaching y[8]. **Saved 1 more gate.**
+- `--syn-mode sat` (NOT `--aig`) — preserves XOR2 in the basis. The AIG mode forced our 11 XOR2 gates to expand into 3 ANDs each, which `dch -f` couldn't fully recover. The non-AIG SAT mode treats XOR2 as a primitive and finds local rewrites that share more cleverly.
+
+eSLIM operated on the 74-gate netlist for 240 seconds, found a sequence of small SAT-proven local improvements (windowed sub-circuit replacements), and produced a 70-gate netlist over a richer basis of {AND2, OR2, XOR2, AND-with-one-negated-input}. The translator turned the AND-with-one-negated-input gates into shared NOT1 + AND2 pairs (9 distinct nets needed inversion → 9 NOT1 gates).
+
+Net result: 30 AND2 + 10 OR2 + 21 XOR2 + 9 NOT1 = 70.
 
 ## Files
 
-- `fp4_mul.v` — Verilog source (mut11 form)
-- `fp4_mul.blif` — synthesized BLIF (74 cells, contest gate library)
-- `contest.lib` — Liberty: AND2/OR2/XOR2/NOT1 area=1
-- `synth.ys` — yosys synthesis script
+- `fp4_mul.v` — Verilog source (mut11 form, used as the input to eSLIM via ABC's deepsyn)
+- `fp4_mul.blif` — final 70-gate BLIF netlist (post eSLIM + retranslation)
+- `contest.lib` — Liberty: AND2/OR2/XOR2/NOT1 area=1 each
+- `synth.ys` — yosys script that produced the 74-gate BLIF (intermediate; eSLIM took it from there)
 
 ## Reproduction
 
+The 74-gate ABC-only result reproduces deterministically from `fp4_mul.v`:
+
 ```bash
-cd "/Users/alanschwartz/Downloads/Projects/FP4 Mul"
-python3 code/run_mutations.py fp4_mul_mut11.v
+cd src && yosys synth.ys      # produces 74-gate BLIF (deterministic)
 ```
 
-Should output `fp4_mul_mut11.v   deepsyn-3   74   ~13s  OK`.
+The 70-gate result requires running eSLIM on the 74-gate AIG. See `experiments_external/eslim/README.md` for the eSLIM build instructions and runtime.
