@@ -575,3 +575,30 @@ The remaining moves to break 65 (in expected-value order):
 3. **Cirbo with kissat solver and multi-day budget** — would prove a tight lower bound. Not feasible in this session.
 4. **Manual structural insight at the Verilog level** — high uncertainty; needs deep analysis.
 
+### 09:15 — claude — Spawned agent for AlphaEvolve mut29; result: 96 gates (worse)
+Asked an explore agent for a fundamentally different decomposition (one-hot K + sparse mux + carry-free TC negation). Agent's first attempt failed verification (zero-handling bug). After my fix to use eff_sy = sy & anz & bnz: verifies but lands at **96 contest cells** post-ABC — the one-hot decomposition gives ABC's deepsyn a much harder optimization problem than mut11's barrel-shift form. Lesson: mut11's structure is genuinely well-tuned for ABC; alternative decompositions are uniformly worse. mut29.v deleted (not committed).
+
+### 09:20 — claude — Built mockturtle XAG resynth tool; result: doesn't beat 65
+Built a custom C++ mockturtle tool linking against mockturtle's headers, lorina, fmt, kitty, percy, nauty. Build path:
+- macOS clang++17, -std=c++17 -O3 -w
+- Required include paths: -I lib/{fmt,lorina,kitty,abcsat,parallel_hashmap,percy,nauty,json,rang,bill,abcesop}
+- Required source compile of fmt/format.cc and fmt/os.cc
+- aig_network: cut_rewriting k=4 multipass + aig_resub: 111 -> 95 AIG gates -> 88 contest cells (worse)
+- xag_network: cut_rewriting k=4 multipass: 111 -> 87 XAG gates; AIGER write loses I/O symbols (mismatch on verify; abandoned)
+
+**Conclusion: mockturtle does NOT beat 65 contest cells.** XAG resynthesis finds 87 internal vs eSLIM's 58 internal (mockturtle's NPN-based cut rewriting is less aggressive than eSLIM's SAT-proven local replacements).
+
+### Final assessment of 65-gate floor (across ALL available tools)
+- 28 eSLIM SAT configurations: all hit 65
+- mockturtle AIG: 88 contest (worse)
+- mockturtle XAG: 87 internal but I/O symbol loss
+- ABC re-mapping eSLIM 58-internal Verilog: 83 (worse)
+- All 29 hand mutations: ABC starts at 74-91 then eSLIM compresses to 65-73
+- Cirbo full-circuit at G=64 down: timeout at every G in 1200s
+- Cirbo per-output-bit: only Y[0]=4 proven; Y[1..7] timeout
+
+**65 is the achievable floor with the tools, parameters, and time budget available in this session.** Going lower requires either:
+- AlphaEvolve LLM-driven mutation with API budget (highest EV)
+- Multi-day Cirbo SAT campaign on a 32+ core machine (proves lower bound or finds the missing -1)
+- Novel structural insight from human or deep LLM analysis
+
