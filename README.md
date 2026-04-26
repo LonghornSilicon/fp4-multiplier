@@ -1,20 +1,20 @@
-# FP4 Multiplier — 70 Gates
+# FP4 Multiplier — 65 Gates
 
 A minimum-gate hardware multiplier for the **MX-FP4 (E2M1)** floating-point format. Takes two 4-bit FP4 numbers, outputs `4·a·b` as a 9-bit two's-complement integer (the "QI9" accumulator format). Built for Etched's take-home challenge — the design and tricks are directly transferable to Longhorn Silicon's tape-out.
 
 ## Result
 
-**70 gates** in the contest gate library `{AND2, OR2, XOR2, NOT1}` (each = 1 unit). Verified correct on all 256 input pairs.
+**65 gates** in the contest gate library `{AND2, OR2, XOR2, NOT1}` (each = 1 unit). Verified correct on all 256 input pairs.
 
 | Cell type | Count |
 |:---|---:|
-| AND2 | 30 |
-| OR2 | 10 |
+| AND2 | 25 |
+| OR2 | 12 |
 | XOR2 | 21 |
-| NOT1 | 9 |
-| **Total** | **70** |
+| NOT1 | 7 |
+| **Total** | **65** |
 
-**5.6× reduction from the naïve PLA→ABC baseline (390 gates).** **17.6% reduction from the prior published-style baseline (~85 gates).** Last 4 gates came from eSLIM SAT-based local improvement applied on top of the 74-gate ABC-deepsyn output.
+**6.0x reduction from the naive PLA->ABC baseline (390 gates).** **23.5% reduction from the prior published-style baseline (~85 gates).** Last 9 gates came from eSLIM SAT-based local improvement applied on top of the 74-gate ABC-deepsyn output (74 -> 70 with default size; 70 -> 65 with `--size 8` windows on a re-application).
 
 ## Repo layout
 
@@ -85,14 +85,15 @@ cd lib && python3 cirbo_subblocks.py shift # K-shift
 
 | Stage | Gates | Win |
 |---|---:|---|
-| PLA → ABC FAST (flat truth table) | 390 | — |
-| Behavioral case-stmt Verilog → yosys+ABC | 222 | yosys structural elaboration |
+| PLA -> ABC FAST (flat truth table) | 390 | - |
+| Behavioral case-stmt Verilog -> yosys+ABC | 222 | yosys structural elaboration |
 | Structural Verilog (sign-magnitude split) + deepsyn | 86 | explicit decomposition exposed to ABC |
-| + best input remap σ = (0,1,2,3,6,7,4,5) | 85 | XOR-decoded `el = a[1]^a[2]` |
+| + best input remap sigma = (0,1,2,3,6,7,4,5) | 85 | XOR-decoded `el = a[1]^a[2]` |
 | + raw-bit `lb = a[1]\|a[2]` collapse | 81 | algebraic identity `a\|(a^b)=a\|b` |
 | + mut2 NAND-chain "below" conditional negate | 75 | replaces +1 carry chain |
 | + mut11 raw P_nonzero direct-route for Y[8] | 74 | bypasses long below-chain for sign output |
-| + **eSLIM SAT-based windowed local improvement** (`--syn-mode sat`) | **70** | SAT-proven minimal sub-circuit replacements; XOR-aware |
+| + eSLIM SAT-based windowed local improvement (`--syn-mode sat`) | 70 | SAT-proven minimal sub-circuit replacements; XOR-aware |
+| + **eSLIM SAT `--size 8` windows on the 70-gate result** | **65** | larger SAT window finds non-local replacements ABC's heuristics miss |
 
 ## Optimality argument (in brief)
 

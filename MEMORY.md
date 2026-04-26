@@ -453,3 +453,61 @@ After that, CaDiCaL + AIGER + relationSynthesiser .so modules built cleanly.
  deepsyn on small arithmetic circuits where XOR matters. ~240s solver
  time for ~5% gate reduction over `&deepsyn` saturation.
 
+---
+
+## 2026-04-26
+
+### 02:00 — claude — Session resume after Alan's usage gap
+- Repo state intact at 70 gates. eSLIM build was wiped (in /tmp). Rebuilt with same APFS rename hack.
+- New mutations from prior session present but not yet eSLIM-iterated: mut25 (91), mut26 (75), mut27 (75).
+- Saved founding context to `~/.claude/projects/.../memory/`.
+
+### 02:30 — claude — eSLIM rebuilt and verified
+- Cloned eSLIM, init'd cadical+aiger submodules.
+- macOS APFS hack: rename FORMAT/VERSION/LICENSE/README/TODO in aiger/ to .txt
+- Pybind11 needed explicit `-Dpybind11_DIR=...`
+- 60s sanity-check on 70-gate netlist: eSLIM internal 70 → 61, contest cells = 70 (different local optimum, same total).
+
+### 02:35 — claude — Launched parallel eSLIM sweep (6 runs)
+- Run A: 70-gate × 1200s SAT default
+- Run B: 70-gate × 900s SAT --size 8
+- Run C: 74-gate ABC output × 600s SAT default
+- Run D: mut26 75-gate × 600s SAT default
+- Run E: mut27 75-gate × 600s SAT default
+- Run F: 70-gate × 900s SAT --abc (failed: needs `/build/abc` not in our path)
+
+### 02:48 — claude — BREAKTHROUGH: 67 gates from run C (74-gate × eSLIM)
+- 74-gate ABC output, eSLIM SAT 600s → 58 internal → **67 contest cells verified**.
+- Cell mix: 28 AND2 + 10 OR2 + 20 XOR2 + 9 NOT1 = 67.
+- Promoted to canonical at `src/fp4_mul.blif`.
+
+### 02:50 — claude — BREAKTHROUGH-2: 65 gates from runs A and B (70-gate × eSLIM)
+- Both Run A (size 6, 1200s) and Run B (size 8, 900s) reduced 70-gate → 58 internal → **65 contest cells verified**.
+- Run A cells: 26 AND + 11 OR + 21 XOR + 7 NOT = 65.
+- Run B cells: 25 AND + 12 OR + 21 XOR + 7 NOT = 65 [promoted as canonical].
+- Two independent eSLIM runs converged on 65 — strong signal of a new local optimum.
+
+### 02:55 — claude — iter1 from 67 didn't beat 65; 70 was the right starting point
+- iter1_67 with sizes 6/8 gave 67-68 (didn't improve from 67).
+- Lesson: starting topology matters. The 70-gate had structure that eSLIM could compress further than the 67-gate or 74-gate had.
+
+### 03:00 — claude — iter2 from 65 launched (5 runs in parallel)
+- iter2_65_s6 / s8 / s10 / s12 / abc74_s8 — all 1200s budget.
+- ETA ~20 min. Awaiting results.
+
+### Trajectory snapshot at 65
+- 390 → 222 → 86 → 85 → 81 → 75 → 74 → 70 → 67 → **65 gates**.
+- 6.0× reduction from PLA baseline.
+- 7.1% reduction from prior canonical 70.
+- 23.5% reduction from 85-gate published-style baseline.
+- Cell breakdown: 25 AND2 + 12 OR2 + 21 XOR2 + 7 NOT1.
+
+### Resume info if interrupted
+- Canonical: `src/fp4_mul.blif` = 65 gates verified-OK.
+- Prior 70-gate preserved at `experiments_external/eslim/fp4_mul_70gate.blif`.
+- eSLIM workdir: `/tmp/eslim_work/` (transient — get wiped on reboot).
+- 5 background eSLIM jobs running on iter2_65_*; check `/tmp/eslim_work/iter2_*.log`.
+- Harvester: `/tmp/eslim_work/harvest.py`.
+- BLIF flattener (handles .gate or .subckt): `/tmp/eslim_work/blif_flatten.py`.
+- Best recipe to reproduce: yosys+ABC mut11.v → 74 gates → eSLIM `--syn-mode sat --size 8` 900s → 65 gates.
+

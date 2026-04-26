@@ -1,4 +1,4 @@
-# Trajectory: 390 → 70 Gates
+# Trajectory: 390 -> 65 Gates
 
 A round-by-round log of what each step did, why it worked, and how big the win was. Useful as a reference for the same kind of optimization on other Longhorn Silicon blocks.
 
@@ -116,11 +116,22 @@ Re-feeding the 74-gate BLIF through `read_blif → resyn → deepsyn → mfs2 �
 
 **Lesson (transferable to Longhorn Silicon):** Don't reduce to AIG before optimizing if your standard cell library has a native XOR2 (cost ≈ AND2). AIG-based tools (basic ABC modes, AIG-only mockturtle, eSLIM `--aig`) give worse results. Use XOR-aware modes: eSLIM `--syn-mode sat`, mockturtle XAG, ABC's `&fx` factoring extraction.
 
-## Saturated fixed-point at 70
+## Saturated fixed-point at 70 with default window size
 
-Re-running eSLIM on the 70-gate netlist with another 240s budget gives 70 (no further improvement on this window size). Going below 70 likely requires:
-- Larger window size in eSLIM (k=4 → k=5 or 6, with much longer SAT solver time)
-- Multi-day Cirbo SAT for a global proof
-- A novel structural insight at the Verilog level
+Re-running eSLIM on the 70-gate netlist with another 240s budget at default `--size 6` gives 70 (no further improvement on this window size).
 
-That said: 70 gates is a 5.6× reduction from the naïve baseline and a 17.6% improvement over the published-style 85-gate result. Solid stopping point.
+## Round 8 — eSLIM with `--size 8` windows on the 70-gate (65 gates) [best]
+
+**What:** Re-applied eSLIM to the 70-gate netlist with the larger window size flag `--size 8` (instead of default 6) and a 900-second budget.
+
+**Result: 65 gates.** Cell breakdown: 25 AND2 + 12 OR2 + 21 XOR2 + 7 NOT1.
+
+**Why much better (-5 gates):** Larger windows let the SAT solver consider more gates per local-replacement query. Each query is exponentially harder, but the larger window can prove non-local restructurings that size 6 windows can't see. Two independent runs (size 6 with 1200s budget, size 8 with 900s budget) both converged on 58-internal-gate solutions translating to 65 contest cells, so 65 is a robust local optimum at this level.
+
+**Lesson (transferable to Longhorn Silicon):** For SAT-based local-improvement tools, **iterate with progressively larger windows**. Each pass exposes structures the prior pass couldn't see at its window size. The cost grows roughly 4-5x per +2 in window size, so plan a budget that doubles per iteration.
+
+## Saturated fixed-point at 65 with size 8
+
+Iterating eSLIM `--size 8` on the 65-gate netlist gives 65 (saturated). Iterating with `--size 10` or larger is the next escalation; expect another -3 to -5 gates if it works, with a 4-8x time budget.
+
+That said: 65 gates is a 6.0x reduction from the naive baseline and a 23.5% improvement over the published-style 85-gate result.

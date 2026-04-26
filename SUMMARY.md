@@ -10,33 +10,35 @@
 
 ## The result
 
-**74 gates**, verified correct on all 256 input pairs.
+**65 gates**, verified correct on all 256 input pairs.
 
 | | |
 |---|---|
-| **Total gate count** | **70** |
-| AND2 | 30 |
-| NOT1 | 9 |
-| OR2 | 10 |
+| **Total gate count** | **65** |
+| AND2 | 25 |
+| NOT1 | 7 |
+| OR2 | 12 |
 | XOR2 | 21 |
 | Verified | [OK] all 256/256 input pairs |
 | Synthesis flow | yosys 0.64 → ABC `&deepsyn -T 3 -I 4` |
 | Wall time to synthesize | ~13 sec (M-series, single thread) |
 | Saved to | `current_best/fp4_mul.{v,blif,README.md}` |
 
-### Trajectory (this session)
+### Trajectory (across sessions)
 
 | Stage | Gates | Win |
 |---|---:|---|
-| PLA + ABC FAST | 390 | — |
+| PLA + ABC FAST | 390 | - |
 | Behavioral Verilog (case-stmt) | 222 | yosys structural elaboration |
 | Structural Verilog + deepsyn | 86 | explicit sign-mag split |
-| + best remap σ | 85 | XOR-decoded `el = a[1]^a[2]` shrinks decoder |
+| + best remap sigma | 85 | XOR-decoded `el = a[1]^a[2]` shrinks decoder |
 | + raw-bit `lb = a[1]\|a[2]` collapse | 81 | algebraic identity `a\|(a^b)=a\|b` |
 | + mut2 NAND-chain "below" detector | 75 | replaces +1 carry chain |
-| + mut11 raw P_nonzero for Y[8] | **74** | bypasses long below-chain for sign output |
+| + mut11 raw P_nonzero for Y[8] | 74 | bypasses long below-chain for sign output |
+| + eSLIM SAT default size 6 | 70 | SAT-proven minimal sub-circuit replacements |
+| + **eSLIM SAT --size 8 on the 70-gate** | **65** | larger SAT window finds non-local replacements |
 
-**5.6× reduction from naive PLA baseline.** **17.6% reduction** over the prior 85-gate published-style result. **70 ↓ from 74** via eSLIM SAT-based windowed local improvement (last step in the trajectory).
+**6.0x reduction from naive PLA baseline.** **23.5% reduction** over the prior 85-gate published-style result. The 70->65 jump was iterating eSLIM with the larger `--size 8` window flag for 900s.
 
 ### Winning input remap
 σ = (0,1,2,3,6,7,4,5) on magnitudes; sign-MSB preserved. Codepoint table:
