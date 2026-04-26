@@ -17,9 +17,9 @@
 | **Total gate count** | **70** |
 | AND2 | 30 |
 | NOT1 | 9 |
-| OR2  | 10 |
+| OR2 | 10 |
 | XOR2 | 21 |
-| Verified | ✅ all 256/256 input pairs |
+| Verified | [OK] all 256/256 input pairs |
 | Synthesis flow | yosys 0.64 → ABC `&deepsyn -T 3 -I 4` |
 | Wall time to synthesize | ~13 sec (M-series, single thread) |
 | Saved to | `current_best/fp4_mul.{v,blif,README.md}` |
@@ -43,14 +43,14 @@
 
 | 4-bit code | value | | 4-bit code | value |
 |:---:|:---:|---|:---:|:---:|
-| 0000 | +0   | | 1000 | -0   |
+| 0000 | +0 | | 1000 | -0 |
 | 0001 | +0.5 | | 1001 | -0.5 |
-| 0010 | +1   | | 1010 | -1   |
+| 0010 | +1 | | 1010 | -1 |
 | 0011 | +1.5 | | 1011 | -1.5 |
-| 0100 | +4   | | 1100 | -4   |
-| 0101 | +6   | | 1101 | -6   |
-| 0110 | +2   | | 1110 | -2   |
-| 0111 | +3   | | 1111 | -3   |
+| 0100 | +4 | | 1100 | -4 |
+| 0101 | +6 | | 1101 | -6 |
+| 0110 | +2 | | 1110 | -2 |
+| 0111 | +3 | | 1111 | -3 |
 
 The remap collapses, in the structural multiplier, to a single-XOR decode trick: `dec_el = a[1] XOR a[2]` (other bits passthrough). Four distinct sign-symmetric remaps tied at 85.
 
@@ -107,10 +107,10 @@ Key references (full list in `PRD.md` §3, also URLs throughout `MEMORY.md`):
 - All 5040 sign-symmetric remaps with mag-0 fixed at code 0
 - 4-worker parallel FAST pass + deepsyn-3s on top 30
 - **Best: 85 gates, 4 distinct perms tie**:
-  - `(0,1,2,3,6,7,4,5)` ← canonical (saved)
-  - `(0,1,6,7,2,3,4,5)`
-  - `(0,2,1,3,6,4,7,5)`
-  - `(0,2,6,4,1,3,7,5)`
+ - `(0,1,2,3,6,7,4,5)` ← canonical (saved)
+ - `(0,1,6,7,2,3,4,5)`
+ - `(0,2,1,3,6,4,7,5)`
+ - `(0,2,6,4,1,3,7,5)`
 - Random non-sign-symmetric (50 sampled): all ≥ 140 gates → sign-symmetric is strictly preferred (matches the lit prediction)
 
 ### 8. AlphaEvolve-style hand mutations (`code/fp4_alphaevolve.py`)
@@ -130,9 +130,9 @@ Our 85-gate full circuit shares ~60% of the per-bit cost. Healthy.
 ### 10. Cirbo SAT-based exact synthesis (`code/cirbo_search.py`, `cirbo_per_bit.py`, `cirbo_full.py`, `cirbo_lb.py`, `cirbo_magnitude.py`)
 - Installed [cirbo 1.0.0](https://github.com/SPbSAT/cirbo)
 - **Y[0] minimum proven = 4 gates** (basis {AND, OR, XOR, NOT}, 1.6 sec):
-  ```
-  Y[0] = (m_a AND m_b) AND NOT(eh_a OR eh_b)
-  ```
+ ```
+ Y[0] = (m_a AND m_b) AND NOT(eh_a OR eh_b)
+ ```
 - Multi-output Cirbo SAT at G=84: TIMEOUT (5+ min, 2 GB memory)
 - G=10 lower-bound probe: TIMEOUT at 70s (the 9-output × 256-minterm SAT instance is too big for our budget)
 - **Conclusion:** rigorous SAT-based proof of optimality below 85 needs days-to-weeks of compute, not hours.
@@ -169,38 +169,38 @@ Our 85-gate full circuit shares ~60% of the per-bit cost. Healthy.
 
 ```
 /Users/alanschwartz/Downloads/Projects/FP4 Mul/
-├── PRD.md                                  # full design doc (research + decomposition + optimality)
-├── MEMORY.md                               # chronological journal (~12 KB)
-├── SUMMARY.md                              # this file
-├── results.tsv                             # PLA-pipeline experiment ledger (~250 rows)
-├── results_remap.tsv                       # remap-aware ledger (~5070 rows)
-├── current_best/                           # canonical 85-gate answer
-│   ├── fp4_mul.v                           #   structural Verilog with 1-XOR remap decoder
-│   ├── fp4_mul.blif                        #   85 .subckt lines
-│   ├── contest.lib                         #   AND2/OR2/XOR2/NOT1 area=1 each
-│   ├── synth.ys                            #   yosys script that produced it
-│   └── README.md                           #   provenance + reproduce instructions
+├── PRD.md # full design doc (research + decomposition + optimality)
+├── MEMORY.md # chronological journal (~12 KB)
+├── SUMMARY.md # this file
+├── results.tsv # PLA-pipeline experiment ledger (~250 rows)
+├── results_remap.tsv # remap-aware ledger (~5070 rows)
+├── current_best/ # canonical 85-gate answer
+│ ├── fp4_mul.v # structural Verilog with 1-XOR remap decoder
+│ ├── fp4_mul.blif # 85 .subckt lines
+│ ├── contest.lib # AND2/OR2/XOR2/NOT1 area=1 each
+│ ├── synth.ys # yosys script that produced it
+│ └── README.md # provenance + reproduce instructions
 ├── code/
-│   ├── fp4_spec.py                         # truth-table source of truth + spec-typo fix
-│   ├── verify.py                           # FROZEN evaluation harness (BLIF simulator)
-│   ├── remap.py                            # sign-symmetric perm enumerator
-│   ├── gen_struct.py                       # emit structural Verilog for any remap
-│   ├── synth.py / synth_v.py / synth_remap.py / synth_struct.py
-│   │                                       # 4 synthesis pipelines (PLA / Verilog / remap-aware / variant comparator)
-│   ├── search.py / search_remap.py         # autoresearch search drivers (parallel)
-│   ├── strategy.py / program.md            # Karpathy autoresearch skeleton (agent-editable + skill spec)
-│   ├── exact_per_bit.py                    # per-output-bit AIG analysis
-│   ├── fp4_alphaevolve.py                  # hand-mutated Verilog candidate comparison
-│   ├── cirbo_search.py / cirbo_per_bit.py / cirbo_full.py / cirbo_magnitude.py / cirbo_lb.py
-│   │                                       # SAT-based exact synthesis (Y[0] proven optimal)
-│   ├── fp4_mul.v                           # behavioural reference (case-stmt)
-│   ├── fp4_mul_struct.v                    # structural sign-mag (the 86-gate basis for default)
-│   ├── fp4_mul_hand.v                      # explicit-shift hand variant
-│   ├── fp4_mul_bw.v                        # explicit Baugh-Wooley fold
-│   ├── fp4_mul_hier.v                      # hierarchical (submodule)
-│   ├── contest.lib                         # 4-cell unit-area Liberty
-│   └── abc.rc                              # ABC alias definitions (resyn2 etc)
-└── synth_artifacts/, synth_artifacts_v/    # per-experiment BLIFs (~200 files, can prune)
+│ ├── fp4_spec.py # truth-table source of truth + spec-typo fix
+│ ├── verify.py # FROZEN evaluation harness (BLIF simulator)
+│ ├── remap.py # sign-symmetric perm enumerator
+│ ├── gen_struct.py # emit structural Verilog for any remap
+│ ├── synth.py / synth_v.py / synth_remap.py / synth_struct.py
+│ │ # 4 synthesis pipelines (PLA / Verilog / remap-aware / variant comparator)
+│ ├── search.py / search_remap.py # autoresearch search drivers (parallel)
+│ ├── strategy.py / program.md # Karpathy autoresearch skeleton (agent-editable + skill spec)
+│ ├── exact_per_bit.py # per-output-bit AIG analysis
+│ ├── fp4_alphaevolve.py # hand-mutated Verilog candidate comparison
+│ ├── cirbo_search.py / cirbo_per_bit.py / cirbo_full.py / cirbo_magnitude.py / cirbo_lb.py
+│ │ # SAT-based exact synthesis (Y[0] proven optimal)
+│ ├── fp4_mul.v # behavioural reference (case-stmt)
+│ ├── fp4_mul_struct.v # structural sign-mag (the 86-gate basis for default)
+│ ├── fp4_mul_hand.v # explicit-shift hand variant
+│ ├── fp4_mul_bw.v # explicit Baugh-Wooley fold
+│ ├── fp4_mul_hier.v # hierarchical (submodule)
+│ ├── contest.lib # 4-cell unit-area Liberty
+│ └── abc.rc # ABC alias definitions (resyn2 etc)
+└── synth_artifacts/, synth_artifacts_v/ # per-experiment BLIFs (~200 files, can prune)
 ```
 
 ---

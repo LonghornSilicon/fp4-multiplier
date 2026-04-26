@@ -8,10 +8,10 @@ Best verified FP4 multiplier netlist: **70 gates** over the contest gate library
 |---|---|
 | **Total gate count** | **70** |
 | AND2 | 30 |
-| OR2  | 10 |
+| OR2 | 10 |
 | XOR2 | 21 |
 | NOT1 | 9 |
-| Verified on all 256 input pairs | ✅ |
+| Verified on all 256 input pairs | [OK] |
 | Synthesis flow | yosys → ABC `&deepsyn` (→ 74) → eSLIM `--syn-mode sat` (→ 70) → re-map to {AND2,OR2,XOR2,NOT1} |
 
 ## Trajectory
@@ -35,14 +35,14 @@ Sign-symmetric (sign at MSB), magnitude permutation:
 
 | 4-bit code | value | | 4-bit code | value |
 |:---:|:---:|---|:---:|:---:|
-| 0000 | +0   | | 1000 | -0   |
+| 0000 | +0 | | 1000 | -0 |
 | 0001 | +0.5 | | 1001 | -0.5 |
-| 0010 | +1   | | 1010 | -1   |
+| 0010 | +1 | | 1010 | -1 |
 | 0011 | +1.5 | | 1011 | -1.5 |
-| 0100 | +4   | | 1100 | -4   |
-| 0101 | +6   | | 1101 | -6   |
-| 0110 | +2   | | 1110 | -2   |
-| 0111 | +3   | | 1111 | -3   |
+| 0100 | +4 | | 1100 | -4 |
+| 0101 | +6 | | 1101 | -6 |
+| 0110 | +2 | | 1110 | -2 |
+| 0111 | +3 | | 1111 | -3 |
 
 ## How the 74→70 reduction was achieved
 
@@ -66,7 +66,7 @@ Net result: 30 AND2 + 10 OR2 + 21 XOR2 + 9 NOT1 = 70.
 The 74-gate ABC-only result reproduces deterministically from `fp4_mul.v`:
 
 ```bash
-cd src && yosys synth.ys      # produces 74-gate BLIF (deterministic)
+cd src && yosys synth.ys # produces 74-gate BLIF (deterministic)
 ```
 
 The 70-gate result requires running eSLIM on the 74-gate AIG. See `experiments_external/eslim/README.md` for the eSLIM build instructions and runtime.

@@ -9,7 +9,7 @@ A minimum-gate hardware multiplier for the **MX-FP4 (E2M1)** floating-point form
 | Cell type | Count |
 |:---|---:|
 | AND2 | 30 |
-| OR2  | 10 |
+| OR2 | 10 |
 | XOR2 | 21 |
 | NOT1 | 9 |
 | **Total** | **70** |
@@ -20,41 +20,41 @@ A minimum-gate hardware multiplier for the **MX-FP4 (E2M1)** floating-point form
 
 ```
 .
-├── README.md             — this file
-├── INSTRUCTIONS.md       — teaching doc: FP4 → multiplier → MAC → matmul → transformer inference
-├── PRD.md                — product/research design doc with research grounding and optimality argument
-├── SUMMARY.md            — concise "what we accomplished" report
-├── MEMORY.md             — chronological research journal (resume-ready for future Claude sessions)
+├── README.md — this file
+├── INSTRUCTIONS.md — teaching doc: FP4 → multiplier → MAC → matmul → transformer inference
+├── PRD.md — product/research design doc with research grounding and optimality argument
+├── SUMMARY.md — concise "what we accomplished" report
+├── MEMORY.md — chronological research journal (resume-ready for future Claude sessions)
 │
-├── src/                  — the canonical 70-gate solution
-│   ├── fp4_mul.v         — Verilog source (mut11 form: NAND-chain "below" detector + raw P_nonzero)
-│   ├── fp4_mul.blif      — final 70-gate BLIF (post eSLIM)
-│   ├── contest.lib       — Liberty file: AND2/OR2/XOR2/NOT1 area=1 each
-│   ├── synth.ys          — yosys synthesis script (produces the 74-gate BLIF; eSLIM takes it from there)
-│   └── README.md         — provenance + reproduction
+├── src/ — the canonical 70-gate solution
+│ ├── fp4_mul.v — Verilog source (mut11 form: NAND-chain "below" detector + raw P_nonzero)
+│ ├── fp4_mul.blif — final 70-gate BLIF (post eSLIM)
+│ ├── contest.lib — Liberty file: AND2/OR2/XOR2/NOT1 area=1 each
+│ ├── synth.ys — yosys synthesis script (produces the 74-gate BLIF; eSLIM takes it from there)
+│ └── README.md — provenance + reproduction
 │
-├── lib/                  — Python library (verifier, generators, synth pipelines, search drivers)
-│   ├── fp4_spec.py       — FROZEN: ground-truth truth-table generator + spec
-│   ├── verify.py         — FROZEN: BLIF parser + 256-pair simulator (the eval harness)
-│   ├── remap.py          — sign-symmetric remap enumerator
-│   ├── gen_*.py          — Verilog generators per remap (struct / raw / mut2 / mut11)
-│   ├── synth_*.py        — synthesis pipelines (PLA / Verilog / structural / remap-aware / mut11)
-│   ├── search_*.py       — multi-worker remap sweep drivers
-│   ├── cirbo_*.py        — SAT-based exact-synthesis experiments (lower bounds)
-│   ├── exact_per_bit.py  — per-output AIG-node analysis
-│   ├── sympy_minimize.py — 2-level SOP minimization (sanity check)
-│   ├── strategy.py       — Karpathy-autoresearch proposal file (agent-edited)
-│   ├── run_mutations.py  — driver to synthesize and verify one or more mutation Verilogs
-│   └── contest.lib, abc.rc
+├── lib/ — Python library (verifier, generators, synth pipelines, search drivers)
+│ ├── fp4_spec.py — FROZEN: ground-truth truth-table generator + spec
+│ ├── verify.py — FROZEN: BLIF parser + 256-pair simulator (the eval harness)
+│ ├── remap.py — sign-symmetric remap enumerator
+│ ├── gen_*.py — Verilog generators per remap (struct / raw / mut2 / mut11)
+│ ├── synth_*.py — synthesis pipelines (PLA / Verilog / structural / remap-aware / mut11)
+│ ├── search_*.py — multi-worker remap sweep drivers
+│ ├── cirbo_*.py — SAT-based exact-synthesis experiments (lower bounds)
+│ ├── exact_per_bit.py — per-output AIG-node analysis
+│ ├── sympy_minimize.py — 2-level SOP minimization (sanity check)
+│ ├── strategy.py — Karpathy-autoresearch proposal file (agent-edited)
+│ ├── run_mutations.py — driver to synthesize and verify one or more mutation Verilogs
+│ └── contest.lib, abc.rc
 │
-├── mutations/            — 24 hand-mutated Verilog formulations (mut1..mut24 + struct/hand/bw/etc)
+├── mutations/ — 24 hand-mutated Verilog formulations (mut1..mut24 + struct/hand/bw/etc)
 │
-├── results/              — experiment ledgers (.tsv, ~7000 rows total across all sweeps)
+├── results/ — experiment ledgers (.tsv, ~7000 rows total across all sweeps)
 │
-├── docs/                 — extended docs
-│   └── program.md        — Karpathy-autoresearch skill spec for the agent loop
+├── docs/ — extended docs
+│ └── program.md — Karpathy-autoresearch skill spec for the agent loop
 │
-└── reference/            — the original Etched contest spec
+└── reference/ — the original Etched contest spec
 ```
 
 ## Quick start
@@ -76,9 +76,9 @@ print('verify:', 'OK' if ok else 'FAIL')
 cd lib && python3 search_mut11.py --n 5040 --top-k 50 --workers 4
 
 # SAT-based exact synthesis on small sub-blocks (proves lower bounds)
-cd lib && python3 cirbo_subblocks.py 2x2     # proves 7 gates exact for 2x2 mul
-cd lib && python3 cirbo_subblocks.py k       # K computation
-cd lib && python3 cirbo_subblocks.py shift   # K-shift
+cd lib && python3 cirbo_subblocks.py 2x2 # proves 7 gates exact for 2x2 mul
+cd lib && python3 cirbo_subblocks.py k # K computation
+cd lib && python3 cirbo_subblocks.py shift # K-shift
 ```
 
 ## How we got here (trajectory)

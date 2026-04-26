@@ -104,7 +104,7 @@ This is literally "result is negative iff signs differ AND both inputs are nonze
 
 Re-feeding the 74-gate BLIF through `read_blif → resyn → deepsyn → mfs2 → dch → map` returns 74. **It is a deterministic local optimum** for ABC's heuristic optimizer.
 
-## Round 7 — eSLIM SAT-based windowed local improvement (70 gates) ⭐
+## Round 7 — eSLIM SAT-based windowed local improvement (70 gates) [best]
 
 **What:** Built [eSLIM](https://github.com/fxreichl/eSLIM) (SAT 2024 paper "eSLIM: Circuit Minimization with SAT-Based Local Improvement" by Reichl/Slivovsky) from source on macOS arm64. Ran on the 74-gate netlist with `--syn-mode sat` for 240 seconds. Translated the output back from eSLIM's basis (which includes "AND with one negated input" gates) to our contest 4-cell library by emitting shared NOT1 gates.
 

@@ -11,7 +11,7 @@ Empirical results from this session. Useful for future Longhorn Silicon work; in
 | **Cirbo 1.0.0** | SAT-based exact synthesis | proves Y[0]=4 (1.6s), 2×2 mul=7 (0.6s) | Tractable for ≤6-input single-output and ≤4-input multi-output. **NOT tractable** for 8-input × 9-output full circuit. |
 | **sympy.logic** | 2-level SOP minimization | confirms ABC's sharing efficiency | Per-bit SOP totals 1627 gates no-share vs ABC's 74 with share = 95% sharing recovered. Y[0] SOP confirms minimum 4 gates. |
 
-## Tool that broke 74 → 70 ⭐
+## Tool that broke 74 → 70 [best]
 
 | Tool | What we tried | Result | Why it worked |
 |---|---|---|---|

@@ -36,14 +36,14 @@ That's 4 bits. The 16 possible bit patterns decode to these values (with both `0
 
 | code | value | code | value |
 |:----:|:-----:|:----:|:-----:|
-| 0000 | +0    | 1000 | -0    |
-| 0001 | +0.5  | 1001 | -0.5  |
-| 0010 | +1    | 1010 | -1    |
-| 0011 | +1.5  | 1011 | -1.5  |
-| 0100 | +2    | 1100 | -2    |
-| 0101 | +3    | 1101 | -3    |
-| 0110 | +4    | 1110 | -4    |
-| 0111 | +6    | 1111 | -6    |
+| 0000 | +0 | 1000 | -0 |
+| 0001 | +0.5 | 1001 | -0.5 |
+| 0010 | +1 | 1010 | -1 |
+| 0011 | +1.5 | 1011 | -1.5 |
+| 0100 | +2 | 1100 | -2 |
+| 0101 | +3 | 1101 | -3 |
+| 0110 | +4 | 1110 | -4 |
+| 0111 | +6 | 1111 | -6 |
 
 Just **8 magnitudes** (with signs giving 16 codes). Notice the spacing: the gaps grow geometrically — 0.5, 1, 1.5, 2, 3, 4, 6 — that's the floating-point's gift: a wide dynamic range at the cost of resolution between values.
 
@@ -222,9 +222,9 @@ Critical configuration: `--syn-mode sat` (NOT `--aig`). AIG mode forces our 11 X
 | Cell type | Count |
 |:---|---:|
 | AND2 | 30 |
-| OR2  | 10 |
+| OR2 | 10 |
 | XOR2 | 21 |
-| NOT1 | 9  |
+| NOT1 | 9 |
 | **Total** | **70** |
 
 eSLIM's optimization significantly **rebalanced the cell mix** — 7 fewer ANDs, 8 fewer ORs, 10 *more* XORs. The SAT-proven local replacements found compact XOR-based sub-circuits that ABC's heuristic resub didn't see.
@@ -240,29 +240,29 @@ eSLIM's optimization significantly **rebalanced the cell mix** — 7 fewer ANDs,
 ### 6.1 Files of interest
 
 ```
-PRD.md               — full design doc (research grounding, optimality argument, milestones)
-SUMMARY.md           — quick reference, "everything accomplished" summary
-MEMORY.md            — chronological journal across Claude sessions
-INSTRUCTIONS.md      — this file
+PRD.md — full design doc (research grounding, optimality argument, milestones)
+SUMMARY.md — quick reference, "everything accomplished" summary
+MEMORY.md — chronological journal across Claude sessions
+INSTRUCTIONS.md — this file
 current_best/
-  ├── fp4_mul.v       — Verilog source (mut11 form, ready to drop into a tape-out flow)
-  ├── fp4_mul.blif    — synthesized 74-gate netlist (BLIF format, 74 .subckt lines)
-  ├── contest.lib     — Liberty file, AND2/OR2/XOR2/NOT1 area=1 each
-  ├── synth.ys        — yosys synthesis script that produced the BLIF
-  └── README.md       — provenance + reproduction recipe
+ ├── fp4_mul.v — Verilog source (mut11 form, ready to drop into a tape-out flow)
+ ├── fp4_mul.blif — synthesized 74-gate netlist (BLIF format, 74 .subckt lines)
+ ├── contest.lib — Liberty file, AND2/OR2/XOR2/NOT1 area=1 each
+ ├── synth.ys — yosys synthesis script that produced the BLIF
+ └── README.md — provenance + reproduction recipe
 code/
-  ├── fp4_spec.py     — ground truth: input encoding + 256-pair reference truth table
-  ├── verify.py       — frozen evaluation harness (BLIF parser + simulator)
-  ├── remap.py        — sign-symmetric remap enumerator
-  ├── gen_*.py        — Verilog generators (per-remap structural / raw / mut2 / mut11)
-  ├── synth_*.py      — synthesis pipelines (PLA / Verilog / remap-aware)
-  ├── search_*.py     — multi-worker remap sweep drivers
-  ├── fp4_mul_*.v     — 18 hand-mutated Verilog formulations explored
-  ├── cirbo_*.py      — SAT-based exact synthesis experiments
-  ├── strategy.py     — autoresearch-style proposal file (agent-edited)
-  ├── program.md      — the human-edited "skill" spec for the autoresearch loop
-  └── ...
-results_*.tsv        — experiment ledgers (~7000 rows total)
+ ├── fp4_spec.py — ground truth: input encoding + 256-pair reference truth table
+ ├── verify.py — frozen evaluation harness (BLIF parser + simulator)
+ ├── remap.py — sign-symmetric remap enumerator
+ ├── gen_*.py — Verilog generators (per-remap structural / raw / mut2 / mut11)
+ ├── synth_*.py — synthesis pipelines (PLA / Verilog / remap-aware)
+ ├── search_*.py — multi-worker remap sweep drivers
+ ├── fp4_mul_*.v — 18 hand-mutated Verilog formulations explored
+ ├── cirbo_*.py — SAT-based exact synthesis experiments
+ ├── strategy.py — autoresearch-style proposal file (agent-edited)
+ ├── program.md — the human-edited "skill" spec for the autoresearch loop
+ └── ...
+results_*.tsv — experiment ledgers (~7000 rows total)
 ```
 
 ### 6.2 To reproduce the 74-gate result
@@ -295,9 +295,9 @@ The Liberty file (`contest.lib`) is contest-specific (unit-cost AND2/OR2/XOR2/NO
 python3 code/search_mut11.py --n 5040 --top-k 50 --workers 4
 
 # Cirbo SAT-based exact synthesis on small sub-blocks
-python3 code/cirbo_subblocks.py 2x2     # proves 7 gates exact
-python3 code/cirbo_subblocks.py k       # K computation
-python3 code/cirbo_subblocks.py shift   # K-shift
+python3 code/cirbo_subblocks.py 2x2 # proves 7 gates exact
+python3 code/cirbo_subblocks.py k # K computation
+python3 code/cirbo_subblocks.py shift # K-shift
 ```
 
 ---
@@ -311,15 +311,15 @@ python3 code/cirbo_subblocks.py shift   # K-shift
 3. **For tape-out**, you have everything you need: a verified Verilog source, a synthesis script, a frozen test bench. Your real next steps are timing closure and place-and-route in your foundry's tools — outside the scope of this contest, well within Longhorn Silicon's mission.
 
 4. **The transferable insights for your chip** beyond just-this-multiplier:
-   - **Input remap** as a free degree of freedom: at every encoder/decoder interface in your dataflow, you can permute the wire ordering for free area savings. Don't waste this.
-   - **NAND-chain "below" detector** for two's-complement conditional negation: the trick is general and saves gates whenever you have to negate a small magnitude.
-   - **Sign-magnitude internal representation** when both operands have a sign-bit-as-MSB encoding: keep the magnitude path unsigned, defer the negation to the very end. Avoids carry propagation across the multiplier.
-   - **Direct-route the most-significant output bit** when you can compute it independently of the magnitude shifter (Y[8] in our case). One free gate every time.
+ - **Input remap** as a free degree of freedom: at every encoder/decoder interface in your dataflow, you can permute the wire ordering for free area savings. Don't waste this.
+ - **NAND-chain "below" detector** for two's-complement conditional negation: the trick is general and saves gates whenever you have to negate a small magnitude.
+ - **Sign-magnitude internal representation** when both operands have a sign-bit-as-MSB encoding: keep the magnitude path unsigned, defer the negation to the very end. Avoids carry propagation across the multiplier.
+ - **Direct-route the most-significant output bit** when you can compute it independently of the magnitude shifter (Y[8] in our case). One free gate every time.
 
 5. **Things to ask a frontier AI next when you want to push deeper:**
-   - "What's the multiplicative complexity of an 8-input × 9-output Boolean function with this specific structure?" (theoretical lower bound)
-   - "Synthesize an exact-minimum netlist using mockturtle's `xag_minmc_resynthesis`" (research-grade EPFL tool)
-   - "Run an OpenEvolve loop with this verifier and the Anthropic API for 1000 mutations overnight" (closes the gap to AlphaEvolve)
-   - "Re-do the synthesis with a Liberty file that prices the gates by your foundry's actual transistor counts" (the unit-cost contest result is a *proxy*; the real die savings depend on your foundry's transistor multipliers per cell type)
+ - "What's the multiplicative complexity of an 8-input × 9-output Boolean function with this specific structure?" (theoretical lower bound)
+ - "Synthesize an exact-minimum netlist using mockturtle's `xag_minmc_resynthesis`" (research-grade EPFL tool)
+ - "Run an OpenEvolve loop with this verifier and the Anthropic API for 1000 mutations overnight" (closes the gap to AlphaEvolve)
+ - "Re-do the synthesis with a Liberty file that prices the gates by your foundry's actual transistor counts" (the unit-cost contest result is a *proxy*; the real die savings depend on your foundry's transistor multipliers per cell type)
 
 Now you're caught up. Let's keep pushing.

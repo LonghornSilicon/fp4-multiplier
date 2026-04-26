@@ -13,14 +13,14 @@ Inputs: two 4-bit MX-FP4 (E2M1, no Inf/NaN, signed-zero ignored) values.
 Default 4-bit codepoint table:
 | code | val | code | val |
 |------|-----|------|-----|
-| 0000 | 0   | 1000 | 0    |
+| 0000 | 0 | 1000 | 0 |
 | 0001 | 0.5 | 1001 | -0.5 |
-| 0010 | 1   | 1010 | -1   |
+| 0010 | 1 | 1010 | -1 |
 | 0011 | 1.5 | 1011 | -1.5 |
-| 0100 | 2   | 1100 | -2   |
-| 0101 | 3   | 1101 | -3   |
-| 0110 | 4   | 1110 | -4   |
-| 0111 | 6   | 1111 | -6   |
+| 0100 | 2 | 1100 | -2 |
+| 0101 | 3 | 1101 | -3 |
+| 0110 | 4 | 1110 | -4 |
+| 0111 | 6 | 1111 | -6 |
 
 Output: 9-bit two's-complement integer **Y = 4 · val(a) · val(b)** (called QI9; the LSB equals 0.25 in the represented Q-value space, but the bit pattern is the integer 4·a·b directly). Range: −144 to +144 (fits 9-bit signed which is −256..+255).
 
@@ -125,28 +125,28 @@ To verify any synthesis-tool output is in the right ballpark, we keep a hand-der
 
 ### Empirical results (default encoding only, 2026-04-25 session)
 
-| starting Verilog        | ABC script         | gates | verified |
+| starting Verilog | ABC script | gates | verified |
 |-------------------------|---------------------|-------|----------|
-| PLA (256 minterms)      | resyn2 ×3 + dch + map | 390   | ✓        |
-| behavioural case-stmt   | yosys + ABC FAST   | 222   | ✓        |
-| `fp4_mul_struct.v`      | FAST               | 93    | ✓        |
-| `fp4_mul_struct.v`      | MED (resyn2 ×3)    | 92    | ✓        |
-| `fp4_mul_struct.v`      | compress2x3        | 90    | ✓        |
-| `fp4_mul_struct.v`      | **deepsyn-3s**     | **86**| ✓        |
-| `fp4_mul_hand.v` (explicit shift exprs) | MED  | 88    | ✓        |
-| `fp4_mul_bw.v` (explicit BW fold)       | FAST | 88    | ✓        |
+| PLA (256 minterms) | resyn2 ×3 + dch + map | 390 | OK |
+| behavioural case-stmt | yosys + ABC FAST | 222 | OK |
+| `fp4_mul_struct.v` | FAST | 93 | OK |
+| `fp4_mul_struct.v` | MED (resyn2 ×3) | 92 | OK |
+| `fp4_mul_struct.v` | compress2x3 | 90 | OK |
+| `fp4_mul_struct.v` | **deepsyn-3s** | **86**| OK |
+| `fp4_mul_hand.v` (explicit shift exprs) | MED | 88 | OK |
+| `fp4_mul_bw.v` (explicit BW fold) | FAST | 88 | OK |
 
 ### Empirical results with input remap (5040-perm wide sweep)
 
 We swept all 5040 sign-symmetric remaps where `code 0 → magnitude 0` is fixed (which is sensible since both zeros must be placed somewhere), then ran deepsyn-3s on the top 30 by FAST gate count. **Four distinct remaps tied at 85 gates**:
 
-| perm σ                  | values at codes 0..7              | gates |
+| perm σ | values at codes 0..7 | gates |
 |-------------------------|-----------------------------------|------:|
-| (0,1,2,3,6,7,4,5)       | [0, 0.5, 1, 1.5, 4, 6, 2, 3]      | 85    |
-| (0,1,6,7,2,3,4,5)       | [0, 0.5, 4, 6, 1, 1.5, 2, 3]      | 85    |
-| (0,2,1,3,6,4,7,5)       | [0, 1, 0.5, 1.5, 4, 2, 6, 3]      | 85    |
-| (0,2,6,4,1,3,7,5)       | [0, 1, 4, 2, 0.5, 1.5, 6, 3]      | 85    |
-| (0,1,2,3,4,5,6,7) (default) | [0, 0.5, 1, 1.5, 2, 3, 4, 6]   | 86    |
+| (0,1,2,3,6,7,4,5) | [0, 0.5, 1, 1.5, 4, 6, 2, 3] | 85 |
+| (0,1,6,7,2,3,4,5) | [0, 0.5, 4, 6, 1, 1.5, 2, 3] | 85 |
+| (0,2,1,3,6,4,7,5) | [0, 1, 0.5, 1.5, 4, 2, 6, 3] | 85 |
+| (0,2,6,4,1,3,7,5) | [0, 1, 4, 2, 0.5, 1.5, 6, 3] | 85 |
+| (0,1,2,3,4,5,6,7) (default) | [0, 0.5, 1, 1.5, 2, 3, 4, 6] | 86 |
 
 The winning σ swaps the e_l interpretation in the e_h=1 region — equivalent to inserting `dec_el_internal = a[1] XOR a[2]` in front of the structural mul. Cell breakdown for σ=(0,1,2,3,6,7,4,5): **41 AND2 + 16 NOT1 + 10 OR2 + 10 XOR2 = 85 gates**. Saved to `current_best/fp4_mul.{v,blif}`.
 
@@ -230,16 +230,16 @@ Alan offered GPU access. **Honest read:** the dominant tools (ABC, Cirbo, eSLIM,
 
 ```
 code/
-  fp4_spec.py          # ground-truth truth-table generator + spec
-  fp4_mul.v            # behavioral Verilog reference (default encoding)
-  contest.lib          # ABC liberty: AND2/OR2/XOR2/NOT1, area=1 each
-  abc.rc               # ABC alias definitions (resyn2, etc.)
-  synth.py             # PLA → ABC pipeline (parametrized by encoding + script)
-  synth_baseline.ys    # yosys script (Verilog → ABC mapping baseline)
-  run_deepsyn.py       # one-shot strong synthesis runner
-PRD.md                 # this file
-MEMORY.md              # chronological journal across sessions
-Etched Take-Home Multiplier Assignment - Campus Tours.{pdf,md}  # the problem
+ fp4_spec.py # ground-truth truth-table generator + spec
+ fp4_mul.v # behavioral Verilog reference (default encoding)
+ contest.lib # ABC liberty: AND2/OR2/XOR2/NOT1, area=1 each
+ abc.rc # ABC alias definitions (resyn2, etc.)
+ synth.py # PLA → ABC pipeline (parametrized by encoding + script)
+ synth_baseline.ys # yosys script (Verilog → ABC mapping baseline)
+ run_deepsyn.py # one-shot strong synthesis runner
+PRD.md # this file
+MEMORY.md # chronological journal across sessions
+Etched Take-Home Multiplier Assignment - Campus Tours.{pdf,md} # the problem
 ```
 
 Pending: `verify.py` (formal-equiv check), `search.py` (remap search driver), `program.md` (autoresearch agent skill), `results.tsv` (ledger).

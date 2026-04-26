@@ -1,4 +1,4 @@
-# eSLIM Experiment — 70 Gates ⭐
+# eSLIM Experiment — 70 Gates [best]
 
 eSLIM ([SAT 2024 paper "eSLIM: Circuit Minimization with SAT-Based Local Improvement"](https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.SAT.2024.23) by Reichl/Slivovsky, [GitHub](https://github.com/fxreichl/eSLIM)) was run on our 74-gate ABC-deepsyn output and **reduced it to 70 gates verified-OK on all 256 input pairs.**
 
@@ -29,7 +29,7 @@ cd /tmp/eSLIM
 pip install pybind11 bitarray
 # macOS APFS hack: rename uppercase header-shadowing files in aiger/
 for f in VERSION FORMAT LICENSE README TODO; do
-  mv aiger/$f aiger/${f}.txt
+ mv aiger/$f aiger/${f}.txt
 done
 # Build
 cd src/bindings && cmake -B build && cmake --build build -j
@@ -43,7 +43,7 @@ cd /tmp/eslim_work
 python3 blif_to_aig.py fp4_mul.blif fp4_flat.blif
 # Run eSLIM
 PYTHONPATH=/tmp/eSLIM/src/bindings/build python3 /tmp/eSLIM/src/reduce.py \
-    fp4_flat.blif fp4_reduced.blif 240 --syn-mode sat
+ fp4_flat.blif fp4_reduced.blif 240 --syn-mode sat
 # Translate eSLIM output back to {AND2, OR2, XOR2, NOT1} contest cells
 python3 eslim_to_gates.py fp4_reduced.blif fp4_mul.blif
 # Verify

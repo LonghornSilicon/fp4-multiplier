@@ -14,12 +14,12 @@ remap (same on both ports) free.
 ## What you can edit
 
 - **`code/strategy.py`** — your only mutable file. Define `propose()` which
-  returns a list of `(name, values, abc_script)` candidates. Each candidate is
-  one synthesis experiment.
+ returns a list of `(name, values, abc_script)` candidates. Each candidate is
+ one synthesis experiment.
 - **NOTHING ELSE.** The verifier (`verify.py`), spec (`fp4_spec.py`), search
-  driver (`search.py`), liberty file (`contest.lib`), and ABC alias file
-  (`abc.rc`) are FROZEN. If you think any of them is wrong, write a note in
-  `MEMORY.md` and STOP — do not modify them.
+ driver (`search.py`), liberty file (`contest.lib`), and ABC alias file
+ (`abc.rc`) are FROZEN. If you think any of them is wrong, write a note in
+ `MEMORY.md` and STOP — do not modify them.
 
 ## The metric
 
@@ -37,15 +37,15 @@ This is the integrity barrier — don't try to circumvent it.
 
 ```
 LOOP FOREVER:
-  1. Read MEMORY.md and `results.tsv` to see what's been tried.
-  2. Look at the top-K best results so far. What patterns work?
-  3. Propose 1–10 new candidates by editing `strategy.py::propose()`.
-     Candidates are (name, values, abc_script) tuples.
-  4. Run: `python3 code/search.py --candidates from-strategy`
-  5. Read the new rows in `results.tsv`. Did any beat the prior best?
-  6. If yes: git commit `strategy.py` + `results.tsv`. Update MEMORY.md.
-  7. If no: git reset --hard the strategy file. Try a different idea.
-  8. Repeat.
+ 1. Read MEMORY.md and `results.tsv` to see what's been tried.
+ 2. Look at the top-K best results so far. What patterns work?
+ 3. Propose 1–10 new candidates by editing `strategy.py::propose()`.
+ Candidates are (name, values, abc_script) tuples.
+ 4. Run: `python3 code/search.py --candidates from-strategy`
+ 5. Read the new rows in `results.tsv`. Did any beat the prior best?
+ 6. If yes: git commit `strategy.py` + `results.tsv`. Update MEMORY.md.
+ 7. If no: git reset --hard the strategy file. Try a different idea.
+ 8. Repeat.
 ```
 
 **NEVER STOP.** Do not pause to ask the human if you should continue. The loop
@@ -55,25 +55,25 @@ is autonomous. The loop runs until the human interrupts you, period.
 
 - Trivial bug (typo, syntax error in strategy.py): fix it inline, re-run.
 - Conceptually broken idea (synthesizer rejects, verifier fails): record as
-  `crash` in `results.tsv`, revert that experiment, move on.
+ `crash` in `results.tsv`, revert that experiment, move on.
 - ABC takes >2× budget (>120s): kill, record `timeout`, move on.
 - Verifier mismatch on the synthesized BLIF: record `WRONG` in `results.tsv`.
-  This is a HARD FAIL — do not advance even if gate count is lower.
+ This is a HARD FAIL — do not advance even if gate count is lower.
 
 ## Things to try (start here, then improvise)
 
 1. **Sign-symmetric magnitude permutations.** 40320 of them. Try the obvious:
-   identity, reversed, Gray-code ordered, "magnitude-as-binary" (where bits map
-   directly to numerical magnitude bits).
+ identity, reversed, Gray-code ordered, "magnitude-as-binary" (where bits map
+ directly to numerical magnitude bits).
 2. **Stronger ABC scripts.** `&deepsyn -T 30 -I 8` is a solid default; try
-   `-I 16`, longer `-T`, multiple `&deepsyn` invocations interleaved with
-   `mfs2`, `dch -f`, etc.
+ `-I 16`, longer `-T`, multiple `&deepsyn` invocations interleaved with
+ `mfs2`, `dch -f`, etc.
 3. **Non-sign-symmetric remaps.** A remap where the sign bit isn't the MSB
-   may save gates by encoding "is nonzero" or "is half-integer" cleanly.
+ may save gates by encoding "is nonzero" or "is half-integer" cleanly.
 4. **Two-stage synthesis.** First synthesize the magnitude path (3-in × 3-in →
-   8-out subblock), then bolt on the sign + zero handling.
+ 8-out subblock), then bolt on the sign + zero handling.
 5. **Cirbo / eSLIM.** When a strong ABC result is in hand, try to further
-   optimize via SAT-based local improvement.
+ optimize via SAT-based local improvement.
 
 ## Simplicity tiebreaker
 

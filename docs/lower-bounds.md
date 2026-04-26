@@ -8,15 +8,15 @@ Run `lib/cirbo_search.py` and `lib/cirbo_per_bit.py`.
 
 | Output bit | Y[k] ones (of 256) | Min gates (proven) | Notes |
 |:----------:|:------------------:|:------------------:|:------|
-| Y[0] | 16  | **4** (Cirbo, SAT G=4, UNSAT G=3) | `(m_a AND m_b) AND NOT(eh_a OR eh_b)` |
-| Y[1] | 40  | timeout @ G=10–15 | likely 8–12 |
-| Y[2] | 72  | timeout            | |
-| Y[3] | 96  | timeout            | |
-| Y[4] | 104 | timeout            | |
-| Y[5] | 104 | timeout            | |
-| Y[6] | 100 | timeout            | |
-| Y[7] | 98  | timeout            | |
-| Y[8] | 98  | timeout            | likely ~5–8 with sharing |
+| Y[0] | 16 | **4** (Cirbo, SAT G=4, UNSAT G=3) | `(m_a AND m_b) AND NOT(eh_a OR eh_b)` |
+| Y[1] | 40 | timeout @ G=10–15 | likely 8–12 |
+| Y[2] | 72 | timeout | |
+| Y[3] | 96 | timeout | |
+| Y[4] | 104 | timeout | |
+| Y[5] | 104 | timeout | |
+| Y[6] | 100 | timeout | |
+| Y[7] | 98 | timeout | |
+| Y[8] | 98 | timeout | likely ~5–8 with sharing |
 
 ABC `&deepsyn` heuristic counts (no sharing): Y[0]=3, Y[1]=22, Y[2]=35, Y[3]=44, Y[4]=33, Y[5]=32, Y[6]=23, Y[7]=17, Y[8]=9 → sum = 218. Our 74-gate full circuit shares 95% of this.
 

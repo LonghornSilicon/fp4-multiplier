@@ -1,6 +1,6 @@
 # **Take-Home Multiplier Assignment**
 
-**Warning \- this task is very hard.** It is not required for a position at Etched, but solving this task will show world-class talent in solving very hard problems. It may be solved in many ways \- through clever math symmetrics, through very efficient algorithms, or by reasoning it out on paper. 
+**Warning \- this task is very hard.** It is not required for a position at Etched, but solving this task will show world-class talent in solving very hard problems. It may be solved in many ways \- through clever math symmetrics, through very efficient algorithms, or by reasoning it out on paper.
 
 | Value | Binary |
 | ----- | :---- |
@@ -27,8 +27,8 @@ Transformers are made up of many matmuls, of which one key piece is their **mult
 
 **Your job is to design the best possible FP4 multiplier**. It will take in two FP4 numbers, and output **four times their product** as a **nine-bit signed integer** using two’s complement (we do it this way as it makes the “add” portion of the multiply-add operations faster). Some examples:
 
-* 0.5 (represented in FP4 binary as 0001\) times 0.5 equals 0.25. Four times that is , so your circuit should output the binary string **000000001**.  
-* \-3 (represented in FP4 binary as 0001\) times 1.5 equals \-4.5. Four times that is \-18, so your circuit should output the binary string **110111000**.  
+* 0.5 (represented in FP4 binary as 0001\) times 0.5 equals 0.25. Four times that is , so your circuit should output the binary string **000000001**.
+* \-3 (represented in FP4 binary as 0001\) times 1.5 equals \-4.5. Four times that is \-18, so your circuit should output the binary string **110111000**.
 * We will call this format (nine-bit two’s complement signed integers where the LSB represents one-fourth) **QI9**. A list of QI9[^2] numbers may be seen in the appendix.
 
 ## Input Remapping
@@ -45,7 +45,7 @@ The constant-zero and constant-one gates are free. Any remapping of the inputs i
 
 You may use any resources you like online, including AI assistants and search engines. Online resources will probably not be helpful.
 
-**A full-credit solution will have the best possible number of gates, and a compelling reason for why you cannot do it in any fewer.** 
+**A full-credit solution will have the best possible number of gates, and a compelling reason for why you cannot do it in any fewer.**
 
 ## Testing your Solution
 
@@ -97,16 +97,16 @@ Please submit any questions to your recruiter.
 | 24 | 96 | 001100000 |
 | 36 | 144 | 010010000 |
 
-[^1]:  In the real multiple-accumulate circuit, scaling factors are added after a 32-input adder. It takes up very little space.
+[^1]: In the real multiple-accumulate circuit, scaling factors are added after a 32-input adder. It takes up very little space.
 
-[^2]:  QI9 is a simplification of what Etched uses for our accumulator datatypes. Improving this format can make the adders even smaller, but we will ignore that for this problem.
+[^2]: QI9 is a simplification of what Etched uses for our accumulator datatypes. Improving this format can make the adders even smaller, but we will ignore that for this problem.
 
-[^3]:  It is not possible to build an optimal solution without this. Etched does remapping in our hardware today in many places \- not just for inputs, but also for intermediate accumulator results and outputs.
+[^3]: It is not possible to build an optimal solution without this. Etched does remapping in our hardware today in many places \- not just for inputs, but also for intermediate accumulator results and outputs.
 
-[^4]:  Relaxing this restriction and having separate mappings for the two inputs wouldn’t help us anyway.
+[^4]: Relaxing this restriction and having separate mappings for the two inputs wouldn’t help us anyway.
 
-[^5]:  Relaxing this restriction can help us, but must be done very carefully and with regard to the electrical properties of the circuit as having more bits for the remapped inputs requires additional flip-flops in our circuit, which draw more power. For the purposes of this problem, we can ignore it.
+[^5]: Relaxing this restriction can help us, but must be done very carefully and with regard to the electrical properties of the circuit as having more bits for the remapped inputs requires additional flip-flops in our circuit, which draw more power. For the purposes of this problem, we can ignore it.
 
-[^6]:  Sohu uses hundreds of different gates, most of which have far more than two inputs/outputs. This further helps with the circuit but we will ignore it in this problem for simplicity.
+[^6]: Sohu uses hundreds of different gates, most of which have far more than two inputs/outputs. This further helps with the circuit but we will ignore it in this problem for simplicity.
 
-[^7]:  In real life the sizes are a little different, but these are all very simple gates anyway we can ignore this.
+[^7]: In real life the sizes are a little different, but these are all very simple gates anyway we can ignore this.
