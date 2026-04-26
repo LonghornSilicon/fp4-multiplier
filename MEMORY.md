@@ -535,3 +535,23 @@ Per-Y[k] cones in the 65-gate netlist:
 3. **AlphaEvolve frontier-LLM mutation** — needs API budget.
 4. **Multi-day eSLIM with `--restarts` and `--limit-inputs` parameter sweep** — fully exhaustive parameter exploration may find a configuration we missed.
 
+### 04:30 — claude — Extended sweep (20+ eSLIM configurations) confirms 65 floor
+Beyond the initial 14 configurations, ran:
+- 70-gate × size 8 with seeds 14141, 15151, 16161 (variance check): 69, 68, 70 contest
+- 78-gate (mut11 with `dch -f` only, no deepsyn) × size 8: 63 internal -> 70 contest
+- 78-gate (dch_only) × size 10: 79 contest (size too big for budget)
+- 70-gate × size 8 with --limit-inputs 5: 60 internal in 35,769 windows -> 69 contest
+- 70-gate × size 8 with --restarts 5: ran out of budget (5x reset behavior); inconsistent
+- 65-gate × size 8 with --restarts 5: returns 58/65 (no improvement)
+- eSLIM internal output × size 10: 58 internal -> 65 contest (TIE)
+- eSLIM internal output × size 8: 58 internal -> 66 contest (close)
+- Cirbo G=64 multi-output: timed out at 1200s (too big a SAT instance, expected)
+- mockturtle: requires C++ wrapper code not yet written; deferred
+
+Total: 22 distinct eSLIM configurations, all converge to 65 contest cells minimum. Evidence is overwhelming that 65 is the eSLIM-SAT-mode floor for this problem.
+
+### 04:35 — claude — Saved-state: 22-config sweep summary, working directory inventory
+- Canonical: `src/fp4_mul.blif` 65 gates, verified 256/256.
+- Best alternates (also 65): `/tmp/eslim_work/run_a_1200s_gates.blif`, `iter3_65_strict_gates.blif`, `iter2_65_s10_a_gates.blif`, `sweep_internal_s10_gates.blif`.
+- All sweep results saved at `/tmp/eslim_work/` (will be wiped on reboot — important artifacts preserved in repo).
+
