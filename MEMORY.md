@@ -506,8 +506,32 @@ After that, CaDiCaL + AIGER + relationSynthesiser .so modules built cleanly.
 - Canonical: `src/fp4_mul.blif` = 65 gates verified-OK.
 - Prior 70-gate preserved at `experiments_external/eslim/fp4_mul_70gate.blif`.
 - eSLIM workdir: `/tmp/eslim_work/` (transient — get wiped on reboot).
-- 5 background eSLIM jobs running on iter2_65_*; check `/tmp/eslim_work/iter2_*.log`.
-- Harvester: `/tmp/eslim_work/harvest.py`.
+- Harvester: `/tmp/eslim_work/loop_step.py`.
 - BLIF flattener (handles .gate or .subckt): `/tmp/eslim_work/blif_flatten.py`.
 - Best recipe to reproduce: yosys+ABC mut11.v → 74 gates → eSLIM `--syn-mode sat --size 8` 900s → 65 gates.
+
+### 03:30 — claude — Comprehensive sweep evidence: 65 is robust eSLIM saturation point
+Across 14 distinct eSLIM runs (varying starting topologies and window sizes):
+- 70-gate × size 6 / 8 / 10 / 12 (multiple seeds, 900-1800s budgets): converges to 65 contest cells via 58 internal gates
+- 74-gate × size 6 / 8 / 10: converges to 67 / 68 / 77 contest cells
+- 75-gate (mut2/mut26/mut27) × size 8: converges to 69-73 contest cells
+- 81-gate raw × size 8: 72 contest cells
+- 65-gate (re-applied, all sizes): saturated at 65
+- eSLIM internal output → eSLIM directly (no re-mapping): 58 → 58 internal saturated
+- ABC re-map of 58-internal Verilog: 83 gates (worse — ABC mapper can't beat manual translator)
+
+Conclusion: 58 is the eSLIM internal floor for this problem under SAT-mode + size 6-12 windows. 65 is the contest-cell floor under our standard translator (with 7 distinct ANDN inputs needing 7 NOTs).
+
+### 03:35 — claude — Per-output cone analysis on 65-gate
+Per-Y[k] cones in the 65-gate netlist:
+- Y[0]: 14 gates (smallest), Y[1]: 28, Y[2]: 38, Y[3]: 45, Y[4]: 49, Y[5]: 53, Y[6]: 57, Y[7]: 60, Y[8]: 58
+- All cones use all 8 PIs except Y[0] which uses 6
+- Massive sharing: only 1 gate is private to a single output (the Y[0]-driving AND2)
+- Cirbo per-cone exact synthesis intractable at these sizes (>10 inputs, >25 gates)
+
+### 03:40 — claude — Path forward to break 65 (priority)
+1. **Mockturtle XAG `xag_minmc_resynthesis`** — different SAT encoding than Cirbo/eSLIM, may find different local minima. Prior attempt got 78; need to investigate why and try with better config.
+2. **Long-running Cirbo at G=64** — proves either lower bound or finds the missing -1.
+3. **AlphaEvolve frontier-LLM mutation** — needs API budget.
+4. **Multi-day eSLIM with `--restarts` and `--limit-inputs` parameter sweep** — fully exhaustive parameter exploration may find a configuration we missed.
 

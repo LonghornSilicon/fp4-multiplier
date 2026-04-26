@@ -130,8 +130,38 @@ Re-running eSLIM on the 70-gate netlist with another 240s budget at default `--s
 
 **Lesson (transferable to Longhorn Silicon):** For SAT-based local-improvement tools, **iterate with progressively larger windows**. Each pass exposes structures the prior pass couldn't see at its window size. The cost grows roughly 4-5x per +2 in window size, so plan a budget that doubles per iteration.
 
-## Saturated fixed-point at 65 with size 8
+## Saturated fixed-point at 65: comprehensive sweep evidence
 
-Iterating eSLIM `--size 8` on the 65-gate netlist gives 65 (saturated). Iterating with `--size 10` or larger is the next escalation; expect another -3 to -5 gates if it works, with a 4-8x time budget.
+Across 14 distinct eSLIM configurations (varying starting topologies and window sizes), 65 contest cells is a robust local minimum:
+
+| Starting netlist | Window size | Time budget | Final internal | Contest cells |
+|---|---:|---:|---:|---:|
+| 70-gate (mut11 -> ABC -> eSLIM-default) | 6 | 1200s | 58 | 65 |
+| 70-gate | 8 | 900s | 58 | 65 (canonical) |
+| 70-gate | 10 | 1800s | 65 | 69 |
+| 70-gate | 12 | 1800s | 70 | 70 |
+| 74-gate (mut11 -> ABC) | 6 | 600s | 58 | 67 |
+| 74-gate | 8 | 1800s | 65 | 68 |
+| 74-gate | 10 | 1800s | 64 | 77 |
+| 75-gate (mut2) | 8 | 1800s | 60 | 69 |
+| 75-gate (mut26) | 6 | 600s | 60 | 69 |
+| 75-gate (mut27) | 6 | 600s | 62 | 73 |
+| 81-gate (raw) | 8 | 1800s | varies | 72 |
+| 65-gate (iter all sizes) | 6/8/10/12 | 1200-1500s | saturated | 65-69 |
+| 58-internal (eSLIM output, re-fed) | 8 | 1800s | 58 | n/a |
+| 58-internal (eSLIM output, re-fed) | 10 | 1800s | 58 | n/a |
+
+Conclusions:
+- **eSLIM internal floor is 58 gates** under SAT-mode for this problem, sizes 6-12.
+- **Contest-cell floor is 65** under our standard translator (7 ANDN gates need 7 distinct shared NOTs).
+- **Bigger windows aren't always better** — size 10/12 quickly run out of time per query and consider only 17-87 windows in 30 minutes vs 2000+ at size 6/8.
+- **70-gate is the special starting point** — landing eSLIM at 65 from there. Larger or smaller starting points converge to worse local optima.
+
+## Path forward to break 65
+
+1. Mockturtle XAG `xag_minmc_resynthesis` (different SAT encoding than Cirbo/eSLIM)
+2. Long-running Cirbo at G=64 (proves lower bound or finds the -1)
+3. AlphaEvolve frontier-LLM mutation loop (needs API budget)
+4. Manual structural breakthrough at the Verilog level
 
 That said: 65 gates is a 6.0x reduction from the naive baseline and a 23.5% improvement over the published-style 85-gate result.
