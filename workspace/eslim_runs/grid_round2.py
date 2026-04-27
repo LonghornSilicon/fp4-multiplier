@@ -31,6 +31,8 @@ starts = [
     "mut32_s1.blif",
     "mut34_s1.blif",
     "mut33_s42.blif",
+    # Special: 6-NOT/72-gate output from round 1 canonical_74_s10_seed42
+    "canonical_74_d10s42_72.blif",
 ]
 
 # Phase A: comprehensive baseline on all variants (size 8/10 only)

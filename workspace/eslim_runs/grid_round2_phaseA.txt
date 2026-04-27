@@ -106,3 +106,9 @@ r2A_mut33_s42_z8_se7777|/home/shadeform/fp4-multiplier/workspace/eslim_runs/star
 r2A_mut33_s42_z10_se1|/home/shadeform/fp4-multiplier/workspace/eslim_runs/starts/mut33_s42.blif|10|0|none|1|1500
 r2A_mut33_s42_z10_se42|/home/shadeform/fp4-multiplier/workspace/eslim_runs/starts/mut33_s42.blif|10|0|none|42|1500
 r2A_mut33_s42_z10_se7777|/home/shadeform/fp4-multiplier/workspace/eslim_runs/starts/mut33_s42.blif|10|0|none|7777|1500
+r2A_canonical_74_d10s42_72_z8_se1|/home/shadeform/fp4-multiplier/workspace/eslim_runs/starts/canonical_74_d10s42_72.blif|8|0|none|1|1500
+r2A_canonical_74_d10s42_72_z8_se42|/home/shadeform/fp4-multiplier/workspace/eslim_runs/starts/canonical_74_d10s42_72.blif|8|0|none|42|1500
+r2A_canonical_74_d10s42_72_z8_se7777|/home/shadeform/fp4-multiplier/workspace/eslim_runs/starts/canonical_74_d10s42_72.blif|8|0|none|7777|1500
+r2A_canonical_74_d10s42_72_z10_se1|/home/shadeform/fp4-multiplier/workspace/eslim_runs/starts/canonical_74_d10s42_72.blif|10|0|none|1|1500
+r2A_canonical_74_d10s42_72_z10_se42|/home/shadeform/fp4-multiplier/workspace/eslim_runs/starts/canonical_74_d10s42_72.blif|10|0|none|42|1500
+r2A_canonical_74_d10s42_72_z10_se7777|/home/shadeform/fp4-multiplier/workspace/eslim_runs/starts/canonical_74_d10s42_72.blif|10|0|none|7777|1500
