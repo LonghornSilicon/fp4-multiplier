@@ -10,19 +10,21 @@ Run `lib/cirbo_per_bit.py` (or the current parallel campaign at `workspace/cirbo
 
 | Output bit | Y[k] ones (of 256) | Min gates (proven) | Notes |
 |:----------:|:------------------:|:------------------:|:------|
-| Y[0] | 16 | **4** (SAT G=4, UNSAT G=3) | `(m_a AND m_b) AND NOT(eh_a OR eh_b)` |
-| Y[1] | 40 | ≥ 7 (UNSAT G=6 in 70s; G=7 search active) | likely 7–10 |
-| Y[2] | 72 | ≥ 7 (UNSAT G=6 in 73s) | |
-| Y[3] | 96 | ≥ 7 (UNSAT G=6 in 92s) | |
-| Y[4] | 104 | ≥ 7 (UNSAT G=6 in 54s) | |
-| Y[5] | 104 | ≥ 7 (UNSAT G=6 in 55s) | |
-| Y[6] | 100 | ≥ 7 (UNSAT G=6 in 84s) | |
-| Y[7] | 98 | ≥ 7 (UNSAT G=6 in 104s) | |
-| Y[8] | 98 | **7** (SAT G=7 in 45s, UNSAT G=6 in 81s) | matches mut11 form: `sy & (a_nz) & (b_nz)` |
+| Y[0] | 16 | **= 4** (SAT G=4, UNSAT G=3) | `(m_a AND m_b) AND NOT(eh_a OR eh_b)` |
+| Y[1] | 40 | **≥ 8** (UNSAT G=6 in 70s, G=7 in 3110s, 4hr budget) | tighter bound 2026-04-27 |
+| Y[2] | 72 | **≥ 8** (UNSAT G=6 in 73s, G=7 in 4018s) | |
+| Y[3] | 96 | **≥ 8** (UNSAT G=6 in 92s, G=7 in 2653s) | |
+| Y[4] | 104 | **≥ 8** (UNSAT G=6 in 54s, G=7 in 2610s) | |
+| Y[5] | 104 | **≥ 8** (UNSAT G=6 in 55s, G=7 in 4131s) | |
+| Y[6] | 100 | **≥ 8** (UNSAT G=6 in 84s, G=7 in 3523s) | |
+| Y[7] | 98 | **≥ 8** (UNSAT G=6 in 104s, G=7 in 3518s) | |
+| Y[8] | 98 | **= 7** (SAT G=7 in 45s, UNSAT G=6 in 81s) | matches mut11 form: `sy & (a_nz) & (b_nz)` |
 
-**Sum of proven per-bit lower bounds (no sharing): ≥ 4 + 7×7 + 7 = 60 gates.** This is well below the 65-gate full-circuit upper bound, so per-bit bounds don't constrain the full circuit tightly — sharing between Y[k] cones recovers ~5 gates of "intersection" between independent per-bit synthesis.
+**Sum of proven per-bit lower bounds (no sharing): ≥ 4 + 8×7 + 7 = 67 gates.**
 
-The 28-core campaign is walking each Y[k] up through G=7, 8, 9, ... until SAT or 1200s timeout. Running. Updates land in `workspace/cirbo_runs/perbit_ledger.tsv`.
+This sum is HIGHER than the actual 64-gate full-circuit upper bound — which is consistent with multi-output sharing: a single gate in the full circuit can contribute to multiple Y[k] cones simultaneously, so the sum is a loose UPPER bound on what an unshared (per-bit-independent) implementation would need, not a lower bound on the multi-output minimum.
+
+The 28-core campaign tightened Y[1..7] from "≥ 7" to "≥ 8" by running each at G=7 with a 4-hour cadical195 budget and getting UNSAT proofs.
 
 ABC `&deepsyn` heuristic counts (no sharing): Y[0]=3, Y[1]=22, Y[2]=35, Y[3]=44, Y[4]=33, Y[5]=32, Y[6]=23, Y[7]=17, Y[8]=9 → sum = 218. Our 74-gate full circuit shares 95% of this.
 
@@ -55,19 +57,21 @@ Run `lib/cirbo_subblocks.py 2x2|k|shift`.
 - **Lower bound ≥ 11 gates** (UNSAT G=8 in 55s, G=9 in 49s, G=10 in 112s; G=11 TIMEOUT at 30min budget — could not decide)
 - The bound is tight: increasing the budget on cadical195 at G=11 may resolve to SAT (= 11) or UNSAT (≥ 12)
 
-## What this means for the current 65-gate result
+## What this means for the current 64-gate result
 
 Sum of provable sub-block lower bounds (independent SAT proofs):
 - 2×2 mul: **= 7** (proven exact)
 - K compute: ≥ 8 (proven UNSAT G=7)
 - K-shift: ≥ 13 (proven UNSAT G=12)
-- Conditional negate: ≥ 11 (proven UNSAT G=10)
+- Conditional negate: ≥ 11 (proven UNSAT G=10; G=11 timed out)
 - Y[8] direct route: **= 7** (proven exact via Cirbo G=7 SAT after G=6 UNSAT)
 - Sign computation (sy = a[3] XOR b[3]): 1 (single XOR)
 
-**Lower-bound sum (no sharing across sub-blocks): ≥ 7 + 8 + 13 + 11 + 7 + 1 = 47.**
+**Lower-bound sum from sub-block decomposition (no sharing): ≥ 7 + 8 + 13 + 11 + 7 + 1 = 47.**
 
-The current 65-gate canonical achieves significant sharing across these sub-blocks — particularly between the K-shift and conditional-negate paths via the mut11 NAND-chain "below-detector" form. The 18-gate gap between the no-share sum (47) and the actual count (65) reflects the cost of multi-output sharing overhead PLUS the loss from forcing an empirically-tight 7-NOT translation of eSLIM's ANDN_A/ANDN_B intermediate gates.
+The current **64-gate canonical** (achieved via gate-neutral XOR re-association + eSLIM size 8 seed 7777) achieves significant sharing across these sub-blocks — particularly between the K-shift and conditional-negate paths. The 17-gate gap between the no-share sum (47) and the actual count (64) reflects multi-output sharing overhead.
+
+**Saturation evidence**: 20 distinct paths to 64 contest cells found across 4 starting topologies × {sizes 8, 10, 12, 14} × {seeds 1, 42, 999, 7777, 13371337}. All have exactly 6 NOTs. **No <64 found** despite 300+ eSLIM SAT-mode configurations sweeping a wide parameter space. This is strong empirical evidence that 64 is the eSLIM-saturation floor under our gate-cost metric.
 
 Our 74-gate result is therefore **at most 38 gates over the theoretical minimum of the structural decomposition.** Substantial sharing across sub-blocks reduces this gap (per the per-bit AIG analysis showing 95% sharing efficiency in our circuit).
 

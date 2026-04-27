@@ -332,3 +332,6 @@ ts	run_id	start	size	restarts	limit_inputs	seed	budget_s	internal	contest	and2	o
 1777291282	phaseB_64canon_z14_r5_se1	fp4_mul.blif	14	5	none	1	3600							eslim_no_output		3154.5
 1777291700	phaseB_64canon_z14_r0_se7	fp4_mul.blif	14	0	none	7	3600	60	64	25	12	21	6	ok	translator=legacy	3639.9
 1777292207	phaseB_64canon_z12_r5_se7	fp4_mul.blif	12	5	none	7	3600							eslim_timeout	hard timeout at 4200s	4200.3
+1777292211	phaseB_64canon_z12_r5_se42	fp4_mul.blif	12	5	none	42	3600							eslim_timeout	hard timeout at 4200s	4200.4
+1777292213	phaseB_64canon_z12_r5_se7777	fp4_mul.blif	12	5	none	7777	3600							eslim_timeout	hard timeout at 4200s	4200.3
+1777292216	phaseB_64canon_z12_r5_se999	fp4_mul.blif	12	5	none	999	3600							eslim_timeout	hard timeout at 4200s	4200.4
