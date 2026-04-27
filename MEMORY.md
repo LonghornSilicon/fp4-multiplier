@@ -702,3 +702,46 @@ The 6 NOTs in the new canonical: not_45, not_47, not_55, not_58,
 not_65, not_68. (vs previous 7: not_11, not_32, not_65, not_70,
 not_72, not_75, not_77.) Different inversion structure entirely.
 
+### 06:30 — claude — Phase B saturation: 20 distinct 64-gate solutions
+
+After phase B (68 experiments) + round 2 phase A (114 experiments) +
+round 1 + variants_mini, we have **20 distinct 64-gate solutions**
+across:
+- 5 different starting variants (v2_assocA_w_75, v2_assocA_w_55,
+  v2_assocB_w_37, v2_assocB_w_58, and the 64-canonical itself
+  re-fed with extreme parameters)
+- Sizes 8, 10, 12, 14
+- Seeds 1, 42, 999, 7777, 13371337
+
+**All 64-gate solutions have exactly 6 NOTs.** The eSLIM internal
+ranges 58-62, but the 6-NOT inverter floor is preserved across every
+convergence basin. NO 5-NOT solution found despite extensive search.
+
+This is strong saturation evidence: **64 is the eSLIM-reachable floor
+under our contest cost metric** (where AND2=OR2=XOR2=NOT1=1).
+
+Cirbo SAT lower-bound campaign ran in parallel:
+- Y[0] = 4 (proven prior session)
+- Y[8] = 7 (NEW: proven exact via SAT G=7 + UNSAT G=6)
+- Y[1..7] ≥ 7 (UNSAT G=6, G=7 timed out at 1200s; round-2 long-budget
+  attempts at G=7 still running with 4hr budget per Y[k])
+- Conditional negate ≥ 11 (NEW: G=10 UNSAT, G=11 TIMEOUT 30min)
+- Sum of independent sub-block LBs (no sharing): ≥ 47
+
+To break 64 would require either:
+(a) Different gate cost metric where 6 inverters ≠ 6 cells (not our model)
+(b) eSLIM internal = 57 with 6 NOTs (eSLIM saturates at 58 across 60+
+    configurations — strong evidence 58 is the SAT-reachable internal floor
+    for this problem)
+(c) AlphaEvolve-style frontier-LLM mutation (needs API budget)
+(d) Multi-day Cirbo SAT on 128GB+ RAM box for full-circuit lower bound proof
+
+### Final cell breakdown (canonical 64, 2026-04-27 04:57 UTC)
+- AND2: 25
+- OR2: 12
+- XOR2: 21
+- NOT1: 6
+- TOTAL: 64
+- Trajectory: 390 → 222 → 86 → 85 → 81 → 75 → 74 → 70 → 65 → **64**
+- 6.09× from PLA baseline; 24.7% from prior published 85-gate baseline.
+

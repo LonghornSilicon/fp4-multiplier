@@ -52,8 +52,8 @@ Run `lib/cirbo_subblocks.py 2x2|k|shift`.
 
 - Inputs: mag[7..0] (8 bits) + sy (1 bit)
 - Outputs: y[7..1] (7 bits) where y = -mag if sy=1 else mag (mod 256)
-- **Lower bound ≥ 11 gates** (UNSAT G=8 in 55s, G=9 in 49s, G=10 in 112s, G=11 search active)
-- Walking G upward; updates land in `workspace/cirbo_runs/neg_block.log`
+- **Lower bound ≥ 11 gates** (UNSAT G=8 in 55s, G=9 in 49s, G=10 in 112s; G=11 TIMEOUT at 30min budget — could not decide)
+- The bound is tight: increasing the budget on cadical195 at G=11 may resolve to SAT (= 11) or UNSAT (≥ 12)
 
 ## What this means for the current 65-gate result
 
