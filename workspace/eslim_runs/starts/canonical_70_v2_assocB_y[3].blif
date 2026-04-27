@@ -1,0 +1,74 @@
+.model fp4_mul
+.inputs a[0] a[1] a[2] a[3] b[0] b[1] b[2] b[3]
+.outputs y[0] y[1] y[2] y[3] y[4] y[5] y[6] y[7] y[8]
+.gate NOT1 A=w_16 Y=not_16
+.gate NOT1 A=w_18 Y=not_18
+.gate NOT1 A=w_34 Y=not_34
+.gate NOT1 A=w_46 Y=not_46
+.gate NOT1 A=w_51 Y=not_51
+.gate NOT1 A=b[1] Y=not_6
+.gate NOT1 A=w_68 Y=not_68
+.gate NOT1 A=w_72 Y=not_72
+.gate NOT1 A=w_73 Y=not_73
+.gate AND2 A=not_6 B=b[2] Y=w_24
+.gate OR2 A=b[1] B=b[2] Y=w_35
+.gate XOR2 A=a[3] B=b[3] Y=w_32
+.gate AND2 A=a[1] B=a[2] Y=w_19
+.gate XOR2 A=b[2] B=w_19 Y=w_64
+.gate XOR2 A=w_24 B=w_64 Y=w_34
+.gate AND2 A=w_19 B=w_34 Y=w_68
+.gate AND2 A=a[2] B=not_68 Y=w_71
+.gate OR2 A=w_71 B=w_24 Y=w_72
+.gate XOR2 A=w_71 B=w_24 Y=w_70
+.gate OR2 A=a[1] B=a[2] Y=w_37
+.gate AND2 A=w_35 B=w_37 Y=w_33
+.gate AND2 A=w_37 B=b[0] Y=w_66
+.gate AND2 A=a[0] B=w_35 Y=w_65
+.gate XOR2 A=w_66 B=w_65 Y=w_44
+.gate AND2 A=not_34 B=w_44 Y=w_36
+.gate AND2 A=w_36 B=w_70 Y=w_43
+.gate AND2 A=a[0] B=b[0] Y=w_18
+.gate AND2 A=not_18 B=w_33 Y=w_67
+.gate AND2 A=w_67 B=not_34 Y=w_39
+.gate XOR2 A=w_39 B=w_36 Y=w_74
+.gate XOR2 A=w_70 B=w_74 Y=w_10
+.gate XOR2 A=w_10 B=w_44 Y=w_16
+.gate AND2 A=w_18 B=w_34 Y=w_69
+.gate XOR2 A=w_69 B=w_72 Y=w_73
+.gate AND2 A=not_73 B=w_33 Y=w_38
+.gate AND2 A=not_16 B=w_73 Y=w_77
+.gate XOR2 A=w_70 B=w_73 Y=w_14
+.gate XOR2 A=w_36 B=w_14 Y=w_51
+.gate AND2 A=w_51 B=not_72 Y=w_41
+.gate AND2 A=w_73 B=not_51 Y=w_42
+.gate XOR2 A=w_34 B=w_18 Y=w_40
+.gate OR2 A=w_14 B=w_40 Y=w_81
+.gate AND2 A=w_38 B=w_81 Y=w_53
+.gate AND2 A=w_42 B=w_81 Y=w_21
+.gate AND2 A=w_21 B=w_32 Y=w_12
+.gate AND2 A=w_14 B=w_40 Y=w_13
+.gate XOR2 A=w_18 B=w_73 Y=w_46
+.gate AND2 A=not_72 B=w_46 Y=y[0]
+.gate OR2 A=y[0] B=w_41 Y=w_20
+.gate AND2 A=w_20 B=w_32 Y=w_56
+.gate AND2 A=not_46 B=w_16 Y=w_83
+.gate XOR2 A=w_56 B=w_83 Y=y[2]
+.gate AND2 A=y[2] B=w_32 Y=w_55
+.gate OR2 A=w_55 B=w_56 Y=w_79
+.gate AND2 A=y[3] B=w_32 Y=w_23
+.gate OR2 A=w_23 B=w_79 Y=w_54
+.gate XOR2 A=w_54 B=w_77 Y=y[4]
+.gate OR2 A=w_54 B=y[4] Y=w_86
+.gate AND2 A=w_32 B=w_86 Y=w_25
+.gate OR2 A=w_12 B=w_25 Y=w_58
+.gate AND2 A=w_58 B=y[0] Y=w_50
+.gate XOR2 A=w_41 B=w_50 Y=y[1]
+.gate XOR2 A=w_21 B=w_25 Y=y[5]
+.gate AND2 A=w_14 B=w_46 Y=w_45
+.gate AND2 A=w_32 B=w_45 Y=w_80
+.gate OR2 A=w_58 B=w_80 Y=y[8]
+.gate XOR2 A=w_13 B=y[8] Y=y[7]
+.gate XOR2 A=w_45 B=w_58 Y=y[6]
+.gate XOR2 A=w_43 B=w_79 Y=_assoc_inner_y[3]
+.gate XOR2 A=_assoc_inner_y[3] B=w_53 Y=y[3]
+.end
