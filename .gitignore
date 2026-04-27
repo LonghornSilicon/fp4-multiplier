@@ -37,3 +37,19 @@ lib/out.blif
 
 # Don't ignore the canonical answer
 !src/fp4_mul.blif
+
+# VPS campaign workspace artifacts (large, transient)
+workspace/eslim_runs/*.blif
+workspace/eslim_runs/*.aig
+workspace/eslim_runs/*.log
+workspace/cirbo_runs/*.log
+workspace/cirbo_runs/*.tsv
+workspace/logs/
+.venv-fp4/
+
+# Sweep workflow temp files
+workspace/eslim_runs/.launch_*.sh
+workspace/eslim_runs/.done_*.txt
+workspace/eslim_runs/done_*.txt
+workspace/eslim_runs/todo_*.txt
+workspace/eslim_runs/resume_*.sh
