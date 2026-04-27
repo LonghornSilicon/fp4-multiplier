@@ -335,3 +335,47 @@ ts	run_id	start	size	restarts	limit_inputs	seed	budget_s	internal	contest	and2	o
 1777292211	phaseB_64canon_z12_r5_se42	fp4_mul.blif	12	5	none	42	3600							eslim_timeout	hard timeout at 4200s	4200.4
 1777292213	phaseB_64canon_z12_r5_se7777	fp4_mul.blif	12	5	none	7777	3600							eslim_timeout	hard timeout at 4200s	4200.3
 1777292216	phaseB_64canon_z12_r5_se999	fp4_mul.blif	12	5	none	999	3600							eslim_timeout	hard timeout at 4200s	4200.4
+1777319565	recur_recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocA_w_55_z8_se7777	recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocA_w_55.blif	8	0	none	7777	1500	58	64	26	12	20	6	ok	translator=legacy	1504.3
+1777319565	recur_recur_fp4_mul_v2_assocA_w_75_s8_se7777_base_z8_se42	recur_fp4_mul_v2_assocA_w_75_s8_se7777_base.blif	8	0	none	42	1500	58	65	26	11	21	7	ok	translator=legacy	1504.4
+1777319566	recur_recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocA_w_55_z8_se13371337	recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocA_w_55.blif	8	0	none	13371337	1500	58	65	25	12	21	7	ok	translator=legacy	1505.2
+1777319566	recur_recur_fp4_mul_v2_assocA_w_75_s8_se7777_base_z8_se13371337	recur_fp4_mul_v2_assocA_w_75_s8_se7777_base.blif	8	0	none	13371337	1500	58	65	25	12	21	7	ok	translator=legacy	1505.4
+1777319567	recur_recur_fp4_mul_v2_assocA_w_75_s8_se7777_base_z10_se7777	recur_fp4_mul_v2_assocA_w_75_s8_se7777_base.blif	10	0	none	7777	1500	59	64	25	11	22	6	ok	translator=legacy	1506.5
+1777319568	recur_recur_fp4_mul_v2_assocA_w_75_s8_se7777_v1_pushA_not_45_z8_se13371337	recur_fp4_mul_v2_assocA_w_75_s8_se7777_v1_pushA_not_45.blif	8	0	none	13371337	1500	55						translate_fail		1507.3
+1777319572	recur_recur_fp4_mul_v2_assocA_w_75_s8_se7777_v1_pushA_not_45_z8_se7777	recur_fp4_mul_v2_assocA_w_75_s8_se7777_v1_pushA_not_45.blif	8	0	none	7777	1500	55						translate_fail		1511.4
+1777319575	recur_recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocA_w_55_z8_se42	recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocA_w_55.blif	8	0	none	42	1500	58	64	25	12	21	6	ok	translator=legacy	1514.2
+1777319575	recur_recur_fp4_mul_v2_assocA_w_75_s8_se7777_base_z8_se7777	recur_fp4_mul_v2_assocA_w_75_s8_se7777_base.blif	8	0	none	7777	1500	58	65	25	12	21	7	ok	translator=legacy	1514.6
+1777319576	recur_recur_fp4_mul_v2_assocA_w_75_s8_se7777_v1_pushA_not_45_z8_se42	recur_fp4_mul_v2_assocA_w_75_s8_se7777_v1_pushA_not_45.blif	8	0	none	42	1500	55						translate_fail		1516.1
+1777319582	recur_recur_fp4_mul_v2_assocA_w_75_s8_se7777_v1_pushA_not_45_z12_se42	recur_fp4_mul_v2_assocA_w_75_s8_se7777_v1_pushA_not_45.blif	12	0	none	42	1500	62						translate_fail		1521.5
+1777319584	recur_recur_fp4_mul_v2_assocA_w_75_s8_se7777_v1_pushA_not_45_z10_se7777	recur_fp4_mul_v2_assocA_w_75_s8_se7777_v1_pushA_not_45.blif	10	0	none	7777	1500	56						translate_fail		1524.0
+1777319585	recur_recur_fp4_mul_v2_assocA_w_75_s8_se7777_base_z12_se13371337	recur_fp4_mul_v2_assocA_w_75_s8_se7777_base.blif	12	0	none	13371337	1500	62	64	25	12	21	6	ok	translator=legacy	1525.1
+1777319589	recur_recur_fp4_mul_v2_assocA_w_75_s8_se7777_v1_pushA_not_45_z10_se42	recur_fp4_mul_v2_assocA_w_75_s8_se7777_v1_pushA_not_45.blif	10	0	none	42	1500	56						translate_fail		1528.2
+1777319591	recur_recur_fp4_mul_v2_assocA_w_75_s8_se7777_base_z10_se42	recur_fp4_mul_v2_assocA_w_75_s8_se7777_base.blif	10	0	none	42	1500	60	64	25	12	21	6	ok	translator=legacy	1530.2
+1777319621	recur_recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocA_w_55_z10_se7777	recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocA_w_55.blif	10	0	none	7777	1500	58	66	25	12	21	8	ok	translator=legacy	1561.2
+1777319623	recur_recur_fp4_mul_v2_assocA_w_75_s8_se7777_v1_pushA_not_45_z10_se13371337	recur_fp4_mul_v2_assocA_w_75_s8_se7777_v1_pushA_not_45.blif	10	0	none	13371337	1500	60						translate_fail		1562.3
+1777319637	recur_recur_fp4_mul_v2_assocA_w_75_s8_se7777_base_z10_se13371337	recur_fp4_mul_v2_assocA_w_75_s8_se7777_base.blif	10	0	none	13371337	1500	61	64	25	12	21	6	ok	translator=legacy	1576.9
+1777319650	recur_recur_fp4_mul_v2_assocA_w_75_s8_se7777_v1_pushA_not_45_z12_se13371337	recur_fp4_mul_v2_assocA_w_75_s8_se7777_v1_pushA_not_45.blif	12	0	none	13371337	1500	60						translate_fail		1590.1
+1777319660	recur_recur_fp4_mul_v2_assocA_w_75_s8_se7777_base_z12_se7777	recur_fp4_mul_v2_assocA_w_75_s8_se7777_base.blif	12	0	none	7777	1500	62	64	25	12	21	6	ok	translator=legacy	1600.1
+1777319666	recur_recur_fp4_mul_v2_assocA_w_75_s8_se7777_v1_pushA_not_45_z12_se7777	recur_fp4_mul_v2_assocA_w_75_s8_se7777_v1_pushA_not_45.blif	12	0	none	7777	1500	60						translate_fail		1605.2
+1777319683	recur_recur_fp4_mul_v2_assocA_w_75_s8_se7777_base_z12_se42	recur_fp4_mul_v2_assocA_w_75_s8_se7777_base.blif	12	0	none	42	1500	62	64	25	12	21	6	ok	translator=legacy	1622.6
+1777321065	recur_recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocA_w_55_z10_se13371337	recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocA_w_55.blif	10	0	none	13371337	1500	59	65	25	12	21	7	ok	translator=legacy	1500.8
+1777321072	recur_recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocA_w_55_z12_se7777	recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocA_w_55.blif	12	0	none	7777	1500	63	64	25	12	21	6	ok	translator=legacy	1506.4
+1777321077	recur_recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocB_w_37_z8_se42	recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocB_w_37.blif	8	0	none	42	1500	58	66	26	11	21	8	ok	translator=legacy	1504.7
+1777321080	recur_recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocB_w_37_z8_se13371337	recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocB_w_37.blif	8	0	none	13371337	1500	58	66	26	11	21	8	ok	translator=legacy	1505.4
+1777321088	recur_recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocB_w_37_z8_se7777	recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocB_w_37.blif	8	0	none	7777	1500	58	67	26	11	21	9	ok	translator=legacy	1520.6
+1777321096	recur_recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocA_w_55_z12_se42	recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocA_w_55.blif	12	0	none	42	1500	63	64	25	12	21	6	ok	translator=legacy	1530.6
+1777321097	recur_recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocB_w_58_z8_se7777	recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocB_w_58.blif	8	0	none	7777	1500	58	66	27	12	19	8	ok	translator=legacy	1506.5
+1777321102	recur_recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocB_w_37_z10_se42	recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocB_w_37.blif	10	0	none	42	1500	59	65	25	12	21	7	ok	translator=legacy	1525.7
+1777321105	recur_recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocA_w_55_z10_se42	recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocA_w_55.blif	10	0	none	42	1500	60	64	25	12	21	6	ok	translator=legacy	1540.5
+1777321109	recur_recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocB_w_37_z10_se7777	recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocB_w_37.blif	10	0	none	7777	1500	59	64	25	12	21	6	ok	translator=legacy	1534.2
+1777321126	recur_recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocB_w_58_z8_se42	recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocB_w_58.blif	8	0	none	42	1500	58	66	26	12	20	8	ok	translator=legacy	1504.2
+1777321136	recur_recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocB_w_58_z8_se13371337	recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocB_w_58.blif	8	0	none	13371337	1500	58	66	26	11	21	8	ok	translator=legacy	1513.2
+1777321149	recur_recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocB_w_37_z10_se13371337	recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocB_w_37.blif	10	0	none	13371337	1500	60	64	25	12	21	6	ok	translator=legacy	1567.2
+1777321158	recur_recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocB_w_37_z12_se42	recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocB_w_37.blif	12	0	none	42	1500	61	65	26	12	20	7	ok	translator=legacy	1572.5
+1777321176	recur_recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocB_w_37_z12_se7777	recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocB_w_37.blif	12	0	none	7777	1500	63	65	25	12	22	6	ok	translator=legacy	1591.1
+1777321183	recur_recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocB_w_58_z10_se7777	recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocB_w_58.blif	10	0	none	7777	1500	58	64	25	12	21	6	ok	translator=legacy	1545.3
+1777321185	recur_recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocB_w_58_z12_se7777	recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocB_w_58.blif	12	0	none	7777	1500	61	64	25	12	21	6	ok	translator=legacy	1519.7
+1777321206	recur_recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocB_w_58_z10_se42	recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocB_w_58.blif	10	0	none	42	1500	60	65	25	12	21	7	ok	translator=legacy	1555.2
+1777321212	recur_recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocA_w_55_z12_se13371337	recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocA_w_55.blif	12	0	none	13371337	1500	62	66	26	12	21	7	ok	translator=legacy	1645.2
+1777321212	recur_recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocB_w_37_z12_se13371337	recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocB_w_37.blif	12	0	none	13371337	1500	62	64	25	12	21	6	ok	translator=legacy	1623.5
+1777321248	recur_recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocB_w_58_z10_se13371337	recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocB_w_58.blif	10	0	none	13371337	1500	62	64	25	12	21	6	ok	translator=legacy	1587.9
+1777321305	recur_recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocB_w_58_z12_se42	recur_fp4_mul_v2_assocA_w_75_s8_se7777_v2_assocB_w_58.blif	12	0	none	42	1500	63	64	25	12	21	6	ok	translator=legacy	1622.0
