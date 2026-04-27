@@ -602,3 +602,67 @@ Built a custom C++ mockturtle tool linking against mockturtle's headers, lorina,
 - Multi-day Cirbo SAT campaign on a 32+ core machine (proves lower bound or finds the missing -1)
 - Novel structural insight from human or deep LLM analysis
 
+---
+
+## 2026-04-27
+
+### Session resume on dedicated 28-vCPU/56GB Linux VPS
+
+User provisioned a 28-vCPU / 56GB RAM Ubuntu 22.04 box specifically to run the long campaigns the previous session recommended. GitHub auth via `gh auth login` (user `A14N77`).
+
+### Toolchain on Linux
+
+- yosys 0.51+104 (OSS CAD Suite 2025-04-01) at `/home/shadeform/oss-cad-suite/bin/`
+- Ubuntu yosys 0.9 + berkeley-abc 1.01 has SIGSEGV bug under our `&deepsyn` script — DON'T use them.
+- ABC 1.01 (Apr 2025 build) bundled with OSS CAD Suite — `&deepsyn` works.
+- python venv at `/home/shadeform/.venv-fp4/`: cirbo 1.0.0, pysat 1.9.dev2 (with cadical195/153, lingeling, glucose42, maplecm, mergesat3, etc.), z3 4.16, sympy.
+- eSLIM at `/home/shadeform/eslim/` — built cleanly on Linux (no APFS rename hack needed).
+  - PYTHONPATH=`/home/shadeform/eslim/src/bindings/build`.
+  - Verified end-to-end: 70-gate canonical -> 59 internal in 120s -> 69 contest cells (different cell mix than canonical 65 because legacy translator allocates 1 NOT per ANDN_A/ANDN_B input).
+- kissat 4.0.4 built at `/home/shadeform/kissat/` (not yet wired into Cirbo).
+
+### Workspace structure (in-repo, gitignored)
+
+```
+fp4-multiplier/workspace/
+├── eslim_runs/
+│   ├── starts/               # 35 diverse starting BLIFs (canonical 65/70/74 + mut11/2/26/27/raw at seeds 1..555)
+│   ├── outputs/              # per-experiment eSLIM + translation outputs
+│   ├── sweep_ledger.tsv      # one row per experiment: ts, run_id, start, size, restarts, limit_inputs, seed, budget_s, internal, contest, and2/or2/xor2/not1, status, note, wall_s
+│   ├── sweep_run.py          # single-experiment runner (frozen verifier)
+│   ├── sweep_master.sh       # parallel orchestrator (xargs -P)
+│   ├── parallel_synth.sh     # parallel start-netlist generator
+│   └── verify_starts.py      # frozen-verifier sanity check
+└── cirbo_runs/
+    ├── cirbo_portfolio.py    # multi-solver SAT portfolio (cadical195/153/lingeling/...)
+    ├── cirbo_ledger.tsv
+    └── cirbo_G64.log
+```
+
+### Structural analysis of canonical 65-gate
+
+Per-output cone sizes (gates only):
+| Y[0] | Y[1] | Y[2] | Y[3] | Y[4] | Y[5] | Y[6] | Y[7] | Y[8] |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 14 | 28 | 38 | 45 | 49 | 53 | 57 | 60 | 58 |
+
+Max depth 21 (Y[7]). The 7 NOTs are localized: each feeds 1-2 ANDs in `AND(NOT(x), y)` patterns — these are eSLIM's ANDN_A/ANDN_B operators after translator expansion. Their inputs come from XORs and ORs, so straightforward DeMorgan rewrites don't help (would just push the NOT to the inputs of an XOR/OR, which can't absorb it).
+
+**Path to 64**: need either (a) different 58-internal with FEWER distinct ANDN inputs (saves 1 NOT) or (b) 57-internal eSLIM solution.
+
+### Round 1 eSLIM sweep (running 2026-04-27 03:46+)
+
+- 35 starting BLIFs × 2 sizes (8, 10) × 2 seeds (1, 42) = 140 experiments
+- 22-way parallel via xargs -P 22, 900s budget per experiment
+- ~1.6 hour wall clock
+- Goal: find a (start, size, seed) combination that yields <= 64 contest cells
+
+### Cirbo G=64 portfolio (running 2026-04-27 03:46+)
+
+- 3 SAT solvers in parallel: cadical195, cadical153, lingeling
+- Single G=64 instance, 6-hour budget per solver
+- Outcomes:
+  - SAT → known upper bound is 64 (we'd then iterate to G=63...)
+  - UNSAT → proven lower bound 65 (TAPE-OUT GRADE optimality proof for Longhorn Silicon)
+  - TIMEOUT → status quo (still 65 best, no proof)
+

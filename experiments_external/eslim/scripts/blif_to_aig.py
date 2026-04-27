@@ -30,8 +30,8 @@ def main(in_path, out_path):
         if line.startswith('.outputs'):
             outputs = line.split()[1:]
             continue
-        if line.startswith('.subckt'):
-            # .subckt KIND A=x B=y Y=z
+        if line.startswith('.subckt') or line.startswith('.gate'):
+            # .subckt KIND A=x B=y Y=z  (or .gate KIND ...)
             parts = line.split()
             kind = parts[1]
             pinmap = {}

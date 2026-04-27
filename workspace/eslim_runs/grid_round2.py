@@ -26,6 +26,11 @@ starts = [
     "canonical_70_v2_assocB_w_10.blif",
     "canonical_70_v2_assocB_w_34.blif",
     "canonical_70_v2_assocB_y[3].blif",
+    # New structural decompositions from round 1 subagent
+    "mut30_s1.blif",
+    "mut32_s1.blif",
+    "mut34_s1.blif",
+    "mut33_s42.blif",
 ]
 
 # Phase A: comprehensive baseline on all variants (size 8/10 only)

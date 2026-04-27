@@ -1,4 +1,4 @@
-# FP4 Multiplier — 65 Gates
+# FP4 Multiplier — 65 Gates (with active 28-vCPU campaign to push lower)
 
 A minimum-gate hardware multiplier for the **MX-FP4 (E2M1)** floating-point format. Takes two 4-bit FP4 numbers, outputs `4·a·b` as a 9-bit two's-complement integer (the "QI9" accumulator format). Built for Etched's take-home challenge — the design and tricks are directly transferable to Longhorn Silicon's tape-out.
 
@@ -15,6 +15,16 @@ A minimum-gate hardware multiplier for the **MX-FP4 (E2M1)** floating-point form
 | **Total** | **65** |
 
 **6.0x reduction from the naive PLA->ABC baseline (390 gates).** **23.5% reduction from the prior published-style baseline (~85 gates).** Last 9 gates came from eSLIM SAT-based local improvement applied on top of the 74-gate ABC-deepsyn output (74 -> 70 with default size; 70 -> 65 with `--size 8` windows on a re-application).
+
+## Active campaign (2026-04-27, dedicated 28-vCPU VPS)
+
+Per the prior session's tier-1/2 recommendations, two campaigns are running on a 28-vCPU / 56GB Ubuntu VPS:
+
+1. **Massive eSLIM SAT sweep** — 35+ diverse starting BLIFs (mut11/2/26/27/30..34 across deepsyn seeds 1..555 + canonical 65/70/74) × 4 window sizes × multiple seeds = ~140-360 experiments. Each verifies under the frozen σ=(0,1,2,3,6,7,4,5) harness; all parameters logged to `workspace/eslim_runs/sweep_ledger.tsv`. Goal: find a 58-internal eSLIM solution with ≤6 distinct ANDN inputs (would yield ≤64 contest cells), or a 57-internal solution.
+2. **Cirbo per-output-bit SAT lower bounds** — 8 parallel SAT searches (one per output bit Y[1..8]) using cadical 1.9.5, walking G upward to find proven minimums. Y[0]=4 is already proven (prior session). Tightening the per-bit lower bounds gives a defensible "≥ X" floor for tape-out review even if no cell improvement is found.
+3. **AlphaEvolve-style mutation generation** — 5 new structurally distinct decompositions (mut30..34) added to the experiment grid: above-detector OR-ladder (mut30), one-hot K + SOP magnitude (mut31), Sklansky parallel-prefix below detector (mut32), Booth-2 B-operand recoding (mut33), Shannon-on-sy with shared above-ladder (mut34). All elaborate cleanly; eSLIM compresses each as one of the round-1 starts.
+
+The previous session exhausted the parameter space available on a single workstation in a fixed time budget. This campaign uses the dedicated VPS (28-vCPU/56GB) the previous session explicitly requested. Round 1 of the eSLIM sweep is running as of 2026-04-27 03:46 UTC; expected wall time ~1.6 hours. See `MEMORY.md` for the full campaign log.
 
 ## Repo layout
 
