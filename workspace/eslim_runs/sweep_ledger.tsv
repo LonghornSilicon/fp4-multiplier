@@ -267,3 +267,67 @@ ts	run_id	start	size	restarts	limit_inputs	seed	budget_s	internal	contest	and2	o
 1777280660	r2A_canonical_74_d10s42_72_z10_se7777	canonical_74_d10s42_72.blif	10	0	none	7777	1500	66	75	34	12	20	9	ok	translator=legacy	1505.8
 1777280690	r2A_canonical_74_d10s42_72_z10_se42	canonical_74_d10s42_72.blif	10	0	none	42	1500	65	76	34	14	17	11	ok	translator=legacy	1535.3
 1777280726	r2A_canonical_74_d10s42_72_z10_se1	canonical_74_d10s42_72.blif	10	0	none	1	1500	69	72	32	12	22	6	ok	translator=legacy	1574.4
+1777283192	phaseB_fp4_mul_v2_assocA_w_55_z8_se7777	fp4_mul_v2_assocA_w_55.blif	8	0	none	7777	2400	58	65	27	11	20	7	ok	translator=legacy	2401.4
+1777283195	phaseB_fp4_mul_v2_assocA_w_55_z8_se1	fp4_mul_v2_assocA_w_55.blif	8	0	none	1	2400	58	67	25	12	21	9	ok	translator=legacy	2404.2
+1777283195	phaseB_fp4_mul_v1_pushA_not_45_z8_se1	fp4_mul_v1_pushA_not_45.blif	8	0	none	1	2400	55						translate_fail		2404.3
+1777283198	phaseB_fp4_mul_v1_pushA_not_45_z8_se7777	fp4_mul_v1_pushA_not_45.blif	8	0	none	7777	2400	55						translate_fail		2406.6
+1777283198	phaseB_fp4_mul_v2_assocA_w_55_z8_se13371337	fp4_mul_v2_assocA_w_55.blif	8	0	none	13371337	2400	58	66	25	12	21	8	ok	translator=legacy	2406.8
+1777283199	phaseB_fp4_mul_v2_assocA_w_55_z8_se42	fp4_mul_v2_assocA_w_55.blif	8	0	none	42	2400	58	66	27	11	20	8	ok	translator=legacy	2407.8
+1777283200	phaseB_fp4_mul_v1_pushA_not_45_z8_se13371337	fp4_mul_v1_pushA_not_45.blif	8	0	none	13371337	2400	55						translate_fail		2408.7
+1777283207	phaseB_fp4_mul_v1_pushA_not_45_z8_se42	fp4_mul_v1_pushA_not_45.blif	8	0	none	42	2400	54						translate_fail		2415.8
+1777283209	phaseB_fp4_mul_v2_assocA_w_55_z10_se1	fp4_mul_v2_assocA_w_55.blif	10	0	none	1	2400	59	65	25	12	21	7	ok	translator=legacy	2418.1
+1777283211	phaseB_fp4_mul_v2_assocA_w_55_z10_se42	fp4_mul_v2_assocA_w_55.blif	10	0	none	42	2400	60	64	25	12	21	6	ok	translator=legacy	2419.6
+1777283222	phaseB_fp4_mul_v1_pushA_not_45_z10_se13371337	fp4_mul_v1_pushA_not_45.blif	10	0	none	13371337	2400	57						translate_fail		2431.3
+1777283232	phaseB_fp4_mul_v1_pushA_not_45_z10_se42	fp4_mul_v1_pushA_not_45.blif	10	0	none	42	2400	55						translate_fail		2441.5
+1777283241	phaseB_fp4_mul_v1_pushA_not_45_z12_se1	fp4_mul_v1_pushA_not_45.blif	12	0	none	1	2400	57						translate_fail		2450.3
+1777283242	phaseB_fp4_mul_v1_pushA_not_45_z10_se1	fp4_mul_v1_pushA_not_45.blif	10	0	none	1	2400	55						translate_fail		2450.9
+1777283249	phaseB_fp4_mul_v1_pushA_not_45_z10_se7777	fp4_mul_v1_pushA_not_45.blif	10	0	none	7777	2400	55						translate_fail		2458.2
+1777283272	phaseB_fp4_mul_v1_pushA_not_45_z12_se7777	fp4_mul_v1_pushA_not_45.blif	12	0	none	7777	2400	58						translate_fail		2481.3
+1777283305	phaseB_fp4_mul_v1_pushA_not_45_z12_se42	fp4_mul_v1_pushA_not_45.blif	12	0	none	42	2400	61						translate_fail		2513.8
+1777283425	phaseB_fp4_mul_v1_pushA_not_45_z12_se13371337	fp4_mul_v1_pushA_not_45.blif	12	0	none	13371337	2400	59						translate_fail		2634.5
+1777285604	phaseB_fp4_mul_v2_assocB_w_37_z8_se1	fp4_mul_v2_assocB_w_37.blif	8	0	none	1	2400	58	65	27	11	20	7	ok	translator=legacy	2404.5
+1777285609	phaseB_fp4_mul_v2_assocB_w_37_z8_se42	fp4_mul_v2_assocB_w_37.blif	8	0	none	42	2400	58	66	27	10	21	8	ok	translator=legacy	2401.7
+1777285611	phaseB_fp4_mul_v2_assocB_w_37_z8_se13371337	fp4_mul_v2_assocB_w_37.blif	8	0	none	13371337	2400	58	66	25	12	21	8	ok	translator=legacy	2400.4
+1777285615	phaseB_fp4_mul_v2_assocA_w_55_z10_se13371337	fp4_mul_v2_assocA_w_55.blif	10	0	none	13371337	2400	58	65	25	12	21	7	ok	translator=legacy	2420.0
+1777285616	phaseB_fp4_mul_v2_assocB_w_37_z8_se7777	fp4_mul_v2_assocB_w_37.blif	8	0	none	7777	2400	58	66	25	12	21	8	ok	translator=legacy	2406.7
+1777285631	phaseB_fp4_mul_v2_assocA_w_55_z10_se7777	fp4_mul_v2_assocA_w_55.blif	10	0	none	7777	2400	58	66	25	12	21	8	ok	translator=legacy	2438.2
+1777285652	phaseB_fp4_mul_v2_assocA_w_55_z12_se13371337	fp4_mul_v2_assocA_w_55.blif	12	0	none	13371337	2400	62	66	26	12	21	7	ok	translator=legacy	2452.8
+1777285653	phaseB_fp4_mul_v2_assocB_w_37_z10_se7777	fp4_mul_v2_assocB_w_37.blif	10	0	none	7777	2400	58	64	25	12	21	6	ok	translator=legacy	2411.8
+1777285655	phaseB_fp4_mul_v2_assocB_w_37_z12_se1	fp4_mul_v2_assocB_w_37.blif	12	0	none	1	2400	62	65	25	12	21	7	ok	translator=legacy	2405.9
+1777285669	phaseB_fp4_mul_v2_assocA_w_55_z12_se42	fp4_mul_v2_assocA_w_55.blif	12	0	none	42	2400	61	64	25	12	21	6	ok	translator=legacy	2471.4
+1777285681	phaseB_fp4_mul_v2_assocB_w_37_z10_se42	fp4_mul_v2_assocB_w_37.blif	10	0	none	42	2400	58	64	25	12	21	6	ok	translator=legacy	2448.1
+1777285688	phaseB_fp4_mul_v2_assocB_w_37_z12_se42	fp4_mul_v2_assocB_w_37.blif	12	0	none	42	2400	61	65	26	12	20	7	ok	translator=legacy	2415.4
+1777285695	phaseB_fp4_mul_v2_assocA_w_55_z12_se1	fp4_mul_v2_assocA_w_55.blif	12	0	none	1	2400	61	65	25	13	21	6	ok	translator=legacy	2499.2
+1777285700	phaseB_fp4_mul_v2_assocB_w_37_z10_se1	fp4_mul_v2_assocB_w_37.blif	10	0	none	1	2400	58	65	26	12	20	7	ok	translator=legacy	2477.3
+1777285712	phaseB_fp4_mul_v2_assocA_w_55_z12_se7777	fp4_mul_v2_assocA_w_55.blif	12	0	none	7777	2400	62	64	25	12	21	6	ok	translator=legacy	2513.9
+1777285715	phaseB_fp4_mul_v2_assocB_w_37_z10_se13371337	fp4_mul_v2_assocB_w_37.blif	10	0	none	13371337	2400	62	64	25	12	21	6	ok	translator=legacy	2473.2
+1777285794	phaseB_fp4_mul_v2_assocB_w_37_z12_se7777	fp4_mul_v2_assocB_w_37.blif	12	0	none	7777	2400	61	64	25	12	21	6	ok	translator=legacy	2489.6
+1777285905	phaseB_fp4_mul_v2_assocB_w_37_z12_se13371337	fp4_mul_v2_assocB_w_37.blif	12	0	none	13371337	2400	62	64	25	12	21	6	ok	translator=legacy	2479.6
+1777288007	phaseB_fp4_mul_v2_assocB_w_58_z8_se1	fp4_mul_v2_assocB_w_58.blif	8	0	none	1	2400	58	67	27	10	21	9	ok	translator=legacy	2402.4
+1777288010	phaseB_fp4_mul_v2_assocB_w_58_z8_se42	fp4_mul_v2_assocB_w_58.blif	8	0	none	42	2400	58	64	25	12	21	6	ok	translator=legacy	2401.9
+1777288012	phaseB_fp4_mul_v2_assocB_w_58_z8_se7777	fp4_mul_v2_assocB_w_58.blif	8	0	none	7777	2400	58	67	26	11	21	9	ok	translator=legacy	2401.3
+1777288016	phaseB_fp4_mul_v2_assocB_w_58_z8_se13371337	fp4_mul_v2_assocB_w_58.blif	8	0	none	13371337	2400	58	68	26	11	21	10	ok	translator=legacy	2400.3
+1777288041	phaseB_fp4_mul_v2_assocB_w_58_z10_se1	fp4_mul_v2_assocB_w_58.blif	10	0	none	1	2400	61	66	26	12	21	7	ok	translator=legacy	2424.7
+1777288060	phaseB_fp4_mul_v2_assocB_w_58_z10_se7777	fp4_mul_v2_assocB_w_58.blif	10	0	none	7777	2400	58	64	25	12	21	6	ok	translator=legacy	2407.9
+1777288069	phaseB_fp4_mul_v2_assocB_w_58_z10_se42	fp4_mul_v2_assocB_w_58.blif	10	0	none	42	2400	59	65	26	12	21	6	ok	translator=legacy	2438.4
+1777288088	phaseB_fp4_mul_v2_assocB_w_58_z10_se13371337	fp4_mul_v2_assocB_w_58.blif	10	0	none	13371337	2400	62	64	25	12	21	6	ok	translator=legacy	2435.3
+1777288094	phaseB_fp4_mul_v2_assocB_w_58_z12_se13371337	fp4_mul_v2_assocB_w_58.blif	12	0	none	13371337	2400	61	64	25	12	21	6	ok	translator=legacy	2406.6
+1777288127	phaseB_fp4_mul_v2_assocB_w_58_z12_se42	fp4_mul_v2_assocB_w_58.blif	12	0	none	42	2400	62	64	25	12	21	6	ok	translator=legacy	2458.1
+1777288128	phaseB_fp4_mul_v2_assocB_w_58_z12_se7777	fp4_mul_v2_assocB_w_58.blif	12	0	none	7777	2400	60	67	27	12	21	7	ok	translator=legacy	2447.6
+1777288133	phaseB_fp4_mul_v2_assocB_w_58_z12_se1	fp4_mul_v2_assocB_w_58.blif	12	0	none	1	2400	61	64	25	12	21	6	ok	translator=legacy	2478.3
+1777288356	phaseB_64canon_z14_r0_se42	fp4_mul.blif	14	0	none	42	3600							eslim_no_output		287.1
+1777288391	phaseB_64canon_z14_r5_se42	fp4_mul.blif	14	5	none	42	3600							eslim_no_output		257.1
+1777288640	phaseB_64canon_z12_r0_se1	fp4_mul.blif	12	0	none	1	3600							eslim_no_output		2945.4
+1777288790	phaseB_64canon_z14_r0_se7777	fp4_mul.blif	14	0	none	7777	3600							eslim_no_output		701.3
+1777289116	phaseB_64canon_z14_r5_se7777	fp4_mul.blif	14	5	none	7777	3600							eslim_no_output		759.3
+1777289322	phaseB_64canon_z12_r0_se7777	fp4_mul.blif	12	0	none	7777	3600	60	64	25	12	21	6	ok	translator=legacy	3606.8
+1777289349	phaseB_64canon_z12_r0_se42	fp4_mul.blif	12	0	none	42	3600	62	64	25	12	21	6	ok	translator=legacy	3637.1
+1777289372	phaseB_64canon_z12_r0_se7	fp4_mul.blif	12	0	none	7	3600	61	66	26	12	20	8	ok	translator=legacy	3672.5
+1777289469	phaseB_64canon_z14_r0_se999	fp4_mul.blif	14	0	none	999	3600							eslim_no_output		1374.4
+1777289491	phaseB_64canon_z12_r0_se999	fp4_mul.blif	12	0	none	999	3600	60	64	25	12	21	6	ok	translator=legacy	3696.6
+1777289780	phaseB_64canon_z14_r5_se999	fp4_mul.blif	14	5	none	999	3600							eslim_no_output		1388.8
+1777290106	phaseB_64canon_z12_r5_se1	fp4_mul.blif	12	5	none	1	3600							eslim_timeout	hard timeout at 4200s	4200.5
+1777290283	phaseB_64canon_z14_r5_se7	fp4_mul.blif	14	5	none	7	3600							eslim_no_output		2154.6
+1777291029	phaseB_64canon_z14_r0_se1	fp4_mul.blif	14	0	none	1	3600							eslim_no_output		2988.2
+1777291282	phaseB_64canon_z14_r5_se1	fp4_mul.blif	14	5	none	1	3600							eslim_no_output		3154.5
+1777291700	phaseB_64canon_z14_r0_se7	fp4_mul.blif	14	0	none	7	3600	60	64	25	12	21	6	ok	translator=legacy	3639.9
