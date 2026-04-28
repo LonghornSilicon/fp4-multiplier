@@ -45,15 +45,26 @@ Re-running eSLIM (`--syn-mode sat --size 8 --seed 7777`, 900s budget) on this ga
 | + eSLIM SAT `--size 8` re-applied on the 70-gate result | 65 | larger SAT window finds non-local replacements |
 | + **gate-neutral XOR re-association + eSLIM `seed=7777`** | **64** | exposed eSLIM to a 6-NOT convergence basin |
 
-## Active campaign (2026-04-27, dedicated 28-vCPU VPS)
+## Submission to Etched
 
-Per the prior session's tier-1/2 recommendations, two campaigns are running on a 28-vCPU / 56GB Ubuntu VPS:
+The two cells to paste into Etched's Colab test notebook live in [`submission/`](./submission/):
+- [`submission/colab_paste.py`](./submission/colab_paste.py) — both blocks, clearly delimited
+- [`submission/README.md`](./submission/README.md) — paste instructions + sanity check
 
-1. **Massive eSLIM SAT sweep** — 35+ diverse starting BLIFs (mut11/2/26/27/30..34 across deepsyn seeds 1..555 + canonical 65/70/74) × 4 window sizes × multiple seeds = ~140-360 experiments. Each verifies under the frozen σ=(0,1,2,3,6,7,4,5) harness; all parameters logged to `workspace/eslim_runs/sweep_ledger.tsv`. Goal: find a 58-internal eSLIM solution with ≤6 distinct ANDN inputs (would yield ≤64 contest cells), or a 57-internal solution.
-2. **Cirbo per-output-bit SAT lower bounds** — 8 parallel SAT searches (one per output bit Y[1..8]) using cadical 1.9.5, walking G upward to find proven minimums. Y[0]=4 is already proven (prior session). Tightening the per-bit lower bounds gives a defensible "≥ X" floor for tape-out review even if no cell improvement is found.
-3. **AlphaEvolve-style mutation generation** — 5 new structurally distinct decompositions (mut30..34) added to the experiment grid: above-detector OR-ladder (mut30), one-hot K + SOP magnitude (mut31), Sklansky parallel-prefix below detector (mut32), Booth-2 B-operand recoding (mut33), Shannon-on-sy with shared above-ladder (mut34). All elaborate cleanly; eSLIM compresses each as one of the round-1 starts.
+**Verified 2026-04-28:** 256/256 input pairs pass the notebook's assertion loop.
 
-The previous session exhausted the parameter space available on a single workstation in a fixed time budget. This campaign uses the dedicated VPS (28-vCPU/56GB) the previous session explicitly requested. Round 1 of the eSLIM sweep is running as of 2026-04-27 03:46 UTC; expected wall time ~1.6 hours. See `MEMORY.md` for the full campaign log.
+## Campaign concluded (2026-04-25 → 2026-04-28)
+
+Multi-session campaign across a personal workstation and a dedicated 28-vCPU / 56GB Ubuntu VPS produced:
+
+- **640+ eSLIM SAT-mode configurations** spanning 5 starting topologies × 5 window sizes × 5 seeds → **124 distinct 64-gate solutions**, all with the same 6-NOT signature. No 5-NOT (sub-64-gate) solution found anywhere in the search space.
+- **Independent corroboration:** mockturtle XAG saturated at 87 internal nodes; ABC `&deepsyn` saturated at 74; Cirbo full-circuit SAT at G=50/55/58/60 OOM'd or timed out before producing UNSAT proofs.
+- **Custom DIMACS encoder + kissat-direct on G=63** (76K vars, 194M clauses, 5.2 GB CNF): ran 16h 35m with stable 16 GB RSS, no verdict — instance is on the edge of practical intractability. Killed 2026-04-28 to free the VPS.
+- **Tighter sub-block lower bounds** (proven via Cirbo SAT): 2×2 mul = 7 (exact), Y[8] = 7 (exact), Y[1..7] ≥ 8, K-shift ≥ 13, conditional negate ≥ 11. Sum (no sharing): ≥ 47.
+
+Outcome: **64 gates with strong empirical optimality evidence, not a formal proof.** Honest assessment: ~70% confidence that 64 is the global minimum. Full reasoning and the defensible writeup phrasing in [`docs/lower-bounds.md`](./docs/lower-bounds.md).
+
+Highest-EV remaining lever: AlphaEvolve-style frontier-LLM mutation loop (proposes gate-neutral source-level rewrites; eSLIM remains the optimizer). Deferred to a non-VPS budget.
 
 ## Repo layout
 
@@ -65,12 +76,18 @@ The previous session exhausted the parameter space available on a single worksta
 ├── SUMMARY.md — concise "what we accomplished" report
 ├── MEMORY.md — chronological research journal (resume-ready for future Claude sessions)
 │
-├── src/ — the canonical 70-gate solution
+├── src/ — the canonical 64-gate solution
 │ ├── fp4_mul.v — Verilog source (mut11 form: NAND-chain "below" detector + raw P_nonzero)
-│ ├── fp4_mul.blif — final 70-gate BLIF (post eSLIM)
+│ ├── fp4_mul.blif — final 64-gate BLIF (post eSLIM + topology perturbation)
+│ ├── fp4_mul.py — Python translation of the BLIF (notebook-ready)
+│ ├── fp4_mul.blif.65gate_backup — prior 65-gate canonical, preserved for reference
 │ ├── contest.lib — Liberty file: AND2/OR2/XOR2/NOT1 area=1 each
 │ ├── synth.ys — yosys synthesis script (produces the 74-gate BLIF; eSLIM takes it from there)
 │ └── README.md — provenance + reproduction
+│
+├── submission/ — Etched Colab paste blocks (verified 256/256 on the official notebook)
+│ ├── colab_paste.py — INPUT_REMAP dict + write_your_multiplier_here function
+│ └── README.md — paste instructions
 │
 ├── lib/ — Python library (verifier, generators, synth pipelines, search drivers)
 │ ├── fp4_spec.py — FROZEN: ground-truth truth-table generator + spec
@@ -132,14 +149,18 @@ cd lib && python3 cirbo_subblocks.py shift # K-shift
 | + mut2 NAND-chain "below" conditional negate | 75 | replaces +1 carry chain |
 | + mut11 raw P_nonzero direct-route for Y[8] | 74 | bypasses long below-chain for sign output |
 | + eSLIM SAT-based windowed local improvement (`--syn-mode sat`) | 70 | SAT-proven minimal sub-circuit replacements; XOR-aware |
-| + **eSLIM SAT `--size 8` windows on the 70-gate result** | **65** | larger SAT window finds non-local replacements ABC's heuristics miss |
+| + eSLIM SAT `--size 8` windows on the 70-gate result | 65 | larger SAT window finds non-local replacements ABC's heuristics miss |
+| + **gate-neutral XOR re-association + eSLIM `seed=7777`** | **64** | exposed eSLIM to a 6-NOT convergence basin |
 
 ## Optimality argument (in brief)
 
-- **Provable lower bounds (Cirbo SAT):** 2×2 unsigned mul = 7 gates exact (G=6 UNSAT, G=7 SAT). K computation ≥ 8 (G=7 UNSAT). K-shift ≥ 13 (G=12 UNSAT). Sum of provable sub-block lower bounds + sign + negate ≈ 36+ gates.
-- **deepsyn fixed-point at 74:** re-feeding the 74-gate BLIF through ABC's full pipeline returns 74 deterministically. Saturated for ABC's heuristic optimizer.
-- **eSLIM broke 74 via SAT-proven windowed replacements** (with `--syn-mode sat` to preserve XOR2 in the basis). Reached 70 in 240 sec on the 74-gate input.
+- **Provable lower bounds (Cirbo SAT):** 2×2 unsigned mul = 7 gates exact (G=6 UNSAT, G=7 SAT). Y[8] = 7 exact. K computation ≥ 8. K-shift ≥ 13. Conditional negate ≥ 11. Sum of provable sub-block lower bounds (no sharing): ≥ 47.
+- **ABC `&deepsyn` fixed-point at 74:** re-feeding the 74-gate BLIF through ABC's full pipeline returns 74 deterministically. Saturated for ABC's heuristic optimizer.
+- **eSLIM SAT mode reached 65** via SAT-proven windowed replacements (with `--syn-mode sat` to preserve XOR2 in the basis). 28+ configurations on the canonical 65-gate netlist all returned 65 — saturation evidence.
+- **Gate-neutral topology perturbation reached 64.** Rewriting `XOR(XOR(a,b),c) → XOR(a,XOR(b,c))` at chosen wires changes the AIG without changing the gate count, then eSLIM converges to a different fixed point with one fewer NOT. **124 distinct 64-gate solutions found** across 600+ configurations, all with the same 6-NOT signature.
 - **Y[0] minimum proven = 4 gates** (`(m_a AND m_b) AND NOT(eh_a OR eh_b)`) by Cirbo SAT.
+
+Honest assessment: ~70% confidence 64 is the global minimum. Full reasoning at [`docs/lower-bounds.md`](./docs/lower-bounds.md).
 
 ## Context
 
