@@ -1,5 +1,5 @@
 """
-FP4xFP4 -> QI9 Multiplier -- Current Best Circuit (84 gates)
+FP4xFP4 -> QI9 Multiplier -- Current Best Circuit (82 gates)
 
 Run: python eval_circuit.py autoresearch/multiplier.py
      python autoresearch/run.py
@@ -12,6 +12,7 @@ Gate count history:
    88 -> v4b (+ sh6=u11 decoder optimization)
    86 -> v4c (+ prefix-OR conditional negation)
    84 -> v4d (+ prefix_or_7=nz: sp7=res0, saves p7+sp7 gates)
+   82 -> v4e (+ 11-gate S-decoder via Cirbo SAT exact synthesis, saves 2)
 
 ---
 
@@ -38,13 +39,13 @@ Gate breakdown:
   E-sum:       7   2-bit adder for (a2,a3)+(b2,b3)
   K-flags:     3   OR(a1,b1), NOT, XOR(a1,b1)
   K-masking:   3   AND each K-flag with nz
-  S decoder:  13   3 NOT + 4 pair-AND + 6 sh (sh6=u11 saves 1 vs naive 14)
+  S decoder:  11   2 OR + 1 NOT + 4 AND + 4 XOR (Cirbo SAT-optimal in AND/OR/XOR/NOT basis)
   AND-terms:  18   7 nmcxsh + 6 k3xsh + 5 k9xsh
   Mag bits:   15   OR assembly for 8 magnitude output bits
   Cond neg:   18   prefix-OR: 5 OR + 6 AND + 7 XOR; sp7=res0 saves 2 gates
   Sign mask:   1   AND(sign, nz) = res0, also used as sp7
   ------------------
-  Total:      84
+  Total:      82
 
 Cond-neg derivation (prefix-OR formula):
   For 2's complement negation of an 8-bit value (applied when sign=1):
@@ -102,26 +103,30 @@ def write_your_multiplier_here(a0, a1, a2, a3, b0, b1, b2, b3,
     k3  = AND(k3_raw,  nz)
     k9  = AND(k9_raw,  nz)
 
-    # S decoder (13 gates): one-hot, S in {0..6}; sh6=u11 (S<=6 guarantees s0=0 when u11=1)
-    ns0 = NOT(s0);  ns1 = NOT(s1);  ns2 = NOT(s2)
-
-    u00 = AND(ns2, ns1);  u01 = AND(ns2, s1)
-    u10 = AND(s2, ns1);   u11 = AND(s2, s1)   # sh6 = u11
-
-    sh0 = AND(u00, ns0);  sh1 = AND(u00, s0)
-    sh2 = AND(u01, ns0);  sh3 = AND(u01, s0)
-    sh4 = AND(u10, ns0);  sh5 = AND(u10, s0)
+    # S decoder (11 gates): one-hot, S in {0..6}.
+    # Cirbo SAT-exact synthesis proves 11 is optimal in AND/OR/XOR/NOT basis (8 UNSAT, 9-11 SAT).
+    # Circuit: 4 AND + 2 OR + 4 XOR + 1 NOT.
+    _or01 = OR(s2, s1);   _or012 = OR(s0, _or01)
+    sh0   = NOT(_or012)                              # sh0 = NOR(s2,s1,s0)
+    sh1   = XOR(_or01, _or012)                       # sh1 = s0 AND NOT(s2 OR s1)
+    _xor2 = XOR(s0, _or012)                          # = NOT(s0) AND (s1 OR s2) when s1|s2
+    _and2 = AND(s2, _xor2)
+    sh3   = AND(s1, s0)
+    sh5   = AND(s2, s0)
+    sh2   = XOR(_xor2, _and2)
+    sh6   = AND(s1, _and2)
+    sh4   = XOR(_and2, sh6)
 
     # AND-terms (18 gates): K x sh_j
     nmc0 = AND(nmc, sh0);  nmc1 = AND(nmc, sh1);  nmc2 = AND(nmc, sh2)
     nmc3 = AND(nmc, sh3);  nmc4 = AND(nmc, sh4);  nmc5 = AND(nmc, sh5)
-    nmc6 = AND(nmc, u11)
+    nmc6 = AND(nmc, sh6)
 
     k3_1 = AND(k3, sh1);  k3_2 = AND(k3, sh2);  k3_3 = AND(k3, sh3)
-    k3_4 = AND(k3, sh4);  k3_5 = AND(k3, sh5);  k3_6 = AND(k3, u11)
+    k3_4 = AND(k3, sh4);  k3_5 = AND(k3, sh5);  k3_6 = AND(k3, sh6)
 
     k9_2 = AND(k9, sh2);  k9_3 = AND(k9, sh3);  k9_4 = AND(k9, sh4)
-    k9_5 = AND(k9, sh5);  k9_6 = AND(k9, u11)
+    k9_5 = AND(k9, sh5);  k9_6 = AND(k9, sh6)
 
     # Magnitude bits (15 gates): m_i = nmc_i OR k3_{i+1} OR k9_{i-1} OR k9_{i+2}
     m7 = k9_6
