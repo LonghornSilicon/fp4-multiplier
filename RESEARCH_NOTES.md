@@ -312,7 +312,7 @@ The circuit passes all 256 FP4×FP4 input pair tests via `eval_circuit.evaluate_
 
 ```bash
 python eval_circuit.py autoresearch/multiplier.py
-# Result: CORRECT, Gates: 82 (max per pair)
+# Result: CORRECT, Gates: 81 (max per pair)
 
 python etched_take_home_multiplier_assignment.py
 # Should pass all 256 asserts
@@ -320,4 +320,38 @@ python etched_take_home_multiplier_assignment.py
 
 ---
 
-*Research conducted 2026-04-27 / extended 2026-04-28. Gate count reduced from flat SOP baseline (~288) to structural approach (82) through progressive mathematical insight, systematic optimization, and SAT-based exact synthesis (Cirbo CircuitFinderSat).*
+## v4f — 81 gates (2026-04-28)
+
+Discovered by `sa_resub.py`: bit-parallel exhaustive resubstitution restricted
+to the 225-input care set.
+
+The reduction: `k9 = AND(NOT(a1|b1), nz)` was rewritten as `k9 = XOR(nz, nmc)`
+where `nmc = AND(a1|b1, nz)`. Verified algebraically:
+- `nz XOR nmc` = `nz AND NOT(nmc)` when `nmc <= nz` (which holds: `nmc = (a1|b1) AND nz`)
+- `nz AND NOT((a1|b1) AND nz)` = `nz AND (NOT(a1|b1) OR NOT(nz))` = `nz AND NOT(a1|b1)` = k9 ✓
+
+The dedicated `NOT(a1|b1)` gate had no other consumers and got DCE'd. Saves 1 gate.
+
+Subsequent attempts to find further single-gate or two-gate rewrites failed:
+- `sa_resub2.py` exhaustive depth-1 + bounded depth-2: no improvement
+- `sa_perturb.py` 7367 random neutral-mutation restarts: no improvement
+- `sa_anneal.py` longer SA runs with stronger perturbations: see latest results
+
+The 81-gate netlist is locally optimal under all tried search strategies.
+Files: `sa_search.py` (simulator), `sa_resub.py` (greedy resub), `sa_anneal.py`
+(SA), `dump_netlist.py` (pretty-printer), `decode_netlist.py` (JSON → eval).
+The 81-gate canonical form is `autoresearch/multiplier.py` (was v4e at 82).
+
+## Search reproducibility
+
+```bash
+python3 sa_search.py        # writes sa_result_82gates.json (no-op confirms 82 is locally optimal under naive search)
+python3 sa_resub.py         # writes resub_result_81gates.json (the actual reduction)
+python3 dump_netlist.py resub_result_81gates.json  # human-readable netlist
+python3 decode_netlist.py resub_result_81gates.json  # verify via eval_circuit
+python3 sa_anneal.py 42 480 3 10  # 8-minute SA run, seed=42
+```
+
+---
+
+*Research conducted 2026-04-27 / extended 2026-04-28. Gate count reduced from flat SOP baseline (~288) → structural approach (82) → SAT-optimal S-decoder (82) → care-set resubstitution (81) through progressive mathematical insight, systematic optimization, SAT-based exact synthesis (Cirbo CircuitFinderSat), and bit-parallel resub search.*
