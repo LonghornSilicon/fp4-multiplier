@@ -42,6 +42,7 @@ lib/out.blif
 workspace/eslim_runs/*.blif
 workspace/eslim_runs/*.aig
 workspace/eslim_runs/*.log
+workspace/eslim_runs/outputs/
 workspace/cirbo_runs/*.log
 workspace/cirbo_runs/*.tsv
 workspace/logs/

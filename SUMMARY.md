@@ -3,26 +3,25 @@
 **Project:** Etched Take-Home Multiplier Assignment (FP4 × FP4 → 9-bit QI9)
 **Owner:** Alan Schwartz (Longhorn Silicon)
 **Stakes:** Real — informs Alan's chip tape-out, not academic
-**Date(s):** 2026-04-25 to 2026-04-27 (multi-session, dedicated 28-vCPU VPS for the final push)
-**Companion files:** `PRD.md` (full design doc), `MEMORY.md` (chronological journal), `docs/campaign-2026-04-27.md` (current VPS campaign), `current_best/` (canonical answer), `code/` (all infrastructure)
+**Date(s):** 2026-04-25 to 2026-04-28 (multi-session, dedicated 28-vCPU VPS for the final push)
+**Companion files:** `PRD.md` (full design doc), `MEMORY.md` (chronological journal), `docs/campaign-2026-04-27.md` (current VPS campaign), `src/fp4_mul.{v,blif}` (canonical answer)
 
 ---
 
 ## The result
 
-**65 gates**, verified correct on all 256 input pairs.
+**64 gates**, verified correct on all 256 input pairs.
 
 | | |
 |---|---|
-| **Total gate count** | **65** |
+| **Total gate count** | **64** |
 | AND2 | 25 |
-| NOT1 | 7 |
 | OR2 | 12 |
 | XOR2 | 21 |
+| NOT1 | 6 |
 | Verified | [OK] all 256/256 input pairs |
-| Synthesis flow | yosys 0.64 → ABC `&deepsyn -T 3 -I 4` |
-| Wall time to synthesize | ~13 sec (M-series, single thread) |
-| Saved to | `current_best/fp4_mul.{v,blif,README.md}` |
+| Synthesis flow | yosys → ABC `&deepsyn` (→ 74) → eSLIM `--syn-mode sat` (→ 70 → 65) → gate-neutral XOR re-association + eSLIM `--size 8 --seed 7777` (→ **64**) |
+| Saved to | `src/fp4_mul.{v,blif}` |
 
 ### Trajectory (across sessions)
 
@@ -36,9 +35,10 @@
 | + mut2 NAND-chain "below" detector | 75 | replaces +1 carry chain |
 | + mut11 raw P_nonzero for Y[8] | 74 | bypasses long below-chain for sign output |
 | + eSLIM SAT default size 6 | 70 | SAT-proven minimal sub-circuit replacements |
-| + **eSLIM SAT --size 8 on the 70-gate** | **65** | larger SAT window finds non-local replacements |
+| + eSLIM SAT --size 8 on the 70-gate | 65 | larger SAT window finds non-local replacements |
+| + **gate-neutral XOR re-association + eSLIM `seed=7777`** | **64** | exposed eSLIM to a 6-NOT convergence basin |
 
-**6.0x reduction from naive PLA baseline.** **23.5% reduction** over the prior 85-gate published-style result. The 70->65 jump was iterating eSLIM with the larger `--size 8` window flag for 900s.
+**6.09× reduction from naive PLA baseline.** **24.7% reduction** over the prior 85-gate published-style result. The final 65→64 jump came from gate-neutrally perturbing the AIG topology before invoking eSLIM, exposing a different convergence basin with one fewer shared inverter.
 
 ### Winning input remap
 σ = (0,1,2,3,6,7,4,5) on magnitudes; sign-MSB preserved. Codepoint table:
