@@ -745,3 +745,73 @@ To break 64 would require either:
 - Trajectory: 390 → 222 → 86 → 85 → 81 → 75 → 74 → 70 → 65 → **64**
 - 6.09× from PLA baseline; 24.7% from prior published 85-gate baseline.
 
+---
+
+## 2026-04-28
+
+### 21:10 — claude — Wrap-up session: kissat killed, repo solidified, VPS to be shut down
+
+User came back to the VPS (~16.5 hours after kicking off the overnight kissat
+run). Status check + cleanup pass.
+
+**Overnight run = kissat-direct on G=63 custom DIMACS exact-synthesis CNF**
+(launched right after commit 385d61b, "Custom DIMACS encoder + kissat-direct
+path: bypass pysat memory wall"). Goal: prove G=63 UNSAT to certify 64 as the
+**global minimum** gate count.
+
+- PID 1148629, 99.9% CPU, 16 GB RSS, started 04:34 UTC.
+- CNF: 5.2 GB, 76K vars, 194M clauses on `/tmp/G63_custom.cnf`.
+- Ran 16h 35m; **no verdict.** Empty `G63_kissat.log` because kissat only
+  emits the `s SATISFIABLE`/`s UNSATISFIABLE` line at termination.
+- Calibration: G=10 UNSAT in seconds, G=20 timeout 180s. G=63 search space
+  is ~10⁹× G=20. Realistic verdict time on this instance: days to weeks.
+- **Killed 2026-04-28 21:09 UTC.** Cost: ~$10 of GPU time (this VPS bills
+  $0.60/hr, and the kissat run was a single-threaded CPU job — wrong machine
+  for the workload anyway).
+- Freed `/tmp/G63_custom.cnf` (5.2 GB), disk 87% → 82%, RAM 18 GB → 3.3 GB used.
+
+### 21:10 — claude — Doc-correctness sweep before shutdown
+
+Found that `SUMMARY.md` and `src/README.md` still claimed 65 gates while the
+canonical at `src/fp4_mul.blif` has been 64 since 2026-04-27 (commit f0df474).
+Re-verified the BLIF: 64 gates, 256/256 OK under σ=(0,1,2,3,6,7,4,5)+sign.
+
+Fixed the stale counts, tightened `.gitignore` to actually exclude
+`workspace/eslim_runs/outputs/` (the prior pattern only matched files at
+the eslim_runs/ root). Pushed as commit 1032978.
+
+Then wrote up the **optimality assessment** in `docs/lower-bounds.md` —
+the substantive question Alan asked verbally: "is 64 the global min?"
+Verbal answer was ~70% yes; doc captures the full reasoning, evidence
+for/against, and the defensible writeup phrasing.
+
+### 21:10 — claude — Honest call on optimality (for resume)
+
+**~70% confidence 64 is global min, not 95%.**
+
+For: 124 distinct 64-gate solutions across 600+ eSLIM SAT configs, 5
+starting topologies, 5 sizes, 5 seeds — all with exactly 6 NOTs, no
+5-NOT found. Three independent tools (eSLIM SAT, mockturtle XAG, ABC
+heuristic) all saturate at-or-above 64.
+
+Against: eSLIM is windowed (≤14 gates) — non-local rearrangement spanning
+20+ gates is invisible. Provable multi-output LB is ~30-40, UB is 64 —
+24+ gate gap of ignorance. AlphaEvolve hasn't been run. The 65→64 unlock
+came from a move (gate-neutral starting-topology perturbation) that
+nobody tried for days — there may be one more such move.
+
+Full reasoning + defensible writeup phrasing in `docs/lower-bounds.md`
+under "Optimality assessment".
+
+### 21:10 — claude — Handoff: AlphaEvolve will run on Alan's own machine
+
+Alan is shutting down this VPS and will run the AlphaEvolve-style frontier-
+LLM mutation loop on his own hardware. That's the highest-EV remaining lever.
+The kissat-on-dedicated-CPU-box-for-1-2-weeks proof-of-optimality path is
+deferred (no longer cost-justified at $0.60/hr for a single-threaded job).
+
+**Final canonical state: 64 gates, verified, pushed.** Repo at
+`https://github.com/LonghornSilicon/fp4-multiplier` HEAD = `<this commit>`.
+
+---
+

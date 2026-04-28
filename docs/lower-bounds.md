@@ -26,7 +26,7 @@ This sum is HIGHER than the actual 64-gate full-circuit upper bound — which is
 
 The 28-core campaign tightened Y[1..7] from "≥ 7" to "≥ 8" by running each at G=7 with a 4-hour cadical195 budget and getting UNSAT proofs.
 
-ABC `&deepsyn` heuristic counts (no sharing): Y[0]=3, Y[1]=22, Y[2]=35, Y[3]=44, Y[4]=33, Y[5]=32, Y[6]=23, Y[7]=17, Y[8]=9 → sum = 218. Our 74-gate full circuit shares 95% of this.
+ABC `&deepsyn` heuristic counts (no sharing): Y[0]=3, Y[1]=22, Y[2]=35, Y[3]=44, Y[4]=33, Y[5]=32, Y[6]=23, Y[7]=17, Y[8]=9 → sum = 218. Our 64-gate full circuit shares ~70% of this.
 
 ## Sub-block proven bounds (Cirbo SAT)
 
@@ -71,14 +71,38 @@ Sum of provable sub-block lower bounds (independent SAT proofs):
 
 The current **64-gate canonical** (achieved via gate-neutral XOR re-association + eSLIM size 8 seed 7777) achieves significant sharing across these sub-blocks — particularly between the K-shift and conditional-negate paths. The 17-gate gap between the no-share sum (47) and the actual count (64) reflects multi-output sharing overhead.
 
-**Saturation evidence**: 20 distinct paths to 64 contest cells found across 4 starting topologies × {sizes 8, 10, 12, 14} × {seeds 1, 42, 999, 7777, 13371337}. All have exactly 6 NOTs. **No <64 found** despite 300+ eSLIM SAT-mode configurations sweeping a wide parameter space. This is strong empirical evidence that 64 is the eSLIM-saturation floor under our gate-cost metric.
+**Saturation evidence**: **124 distinct 64-gate solutions** found across 600+ eSLIM SAT-mode configurations spanning 5 distinct gate-neutral starting topologies × {sizes 6, 8, 10, 12, 14} × 5 seeds. **All 124 have exactly 6 NOTs.** No 5-NOT (sub-64-gate) solution found anywhere in the search space.
 
-Our 74-gate result is therefore **at most 38 gates over the theoretical minimum of the structural decomposition.** Substantial sharing across sub-blocks reduces this gap (per the per-bit AIG analysis showing 95% sharing efficiency in our circuit).
+Independent corroboration:
+- **mockturtle XAG** (different SAT engine, NPN-class cut rewriting): saturated at 87 internal — couldn't even match eSLIM's 58.
+- **ABC `&deepsyn`** (heuristic, no SAT): saturated at 74; eSLIM beats it by 10.
+- **Cirbo full-circuit SAT** at G=50/55/58/60: all OOM'd or timed out before producing UNSAT proofs.
+- **Custom DIMACS encoder + kissat-direct on G=63**: 76K vars, 194M clauses, 5.2 GB CNF. Ran 16h 35m on a single core, stable 16 GB RSS, no verdict — instance is genuinely intractable on a non-dedicated machine. Killed 2026-04-28 to free the VPS.
 
-To prove 74 is optimal globally would require multi-day SAT solver time on a many-core machine running Cirbo with longer timeouts. The 9-output 8-input full-function SAT is on the edge of intractability.
+The 17-gate gap between the no-share sub-block lower-bound sum (47) and the 64-gate full-circuit count reflects multi-output sharing overhead.
+
+## Optimality assessment
+
+**Is 64 the global minimum?** Honest assessment: **probably (≈70% confidence), not proven.**
+
+### What pushes toward "yes"
+- 124 independent search paths converged on 64 with the same 6-NOT signature
+- Three structurally different optimization tools (eSLIM SAT, mockturtle XAG, ABC heuristic) all saturated at or above 64
+- Y[0] = 4 and Y[8] = 7 proven exactly — the small-cone bounds are tight
+- eSLIM's windowed SAT replacement (up to 14 gates per window) is genuinely strong; if a 5-NOT solution existed within any 14-gate sub-circuit of any of those 124 starting points, it would have been found
+
+### What keeps it below "certain"
+- **eSLIM is windowed.** Anything requiring non-local rearrangement spanning 20+ gates simultaneously is invisible to it.
+- **Lower-bound gap is wide.** Best provable multi-output LB is ~30-40 gates; UB is 64. That's a 24-34 gate gap of pure ignorance.
+- **AlphaEvolve / frontier-LLM mutation has not been run.** Identified as the highest-EV remaining move; needs API budget.
+- **The 65→64 unlock came on 2026-04-27** via a move (gate-neutral starting-topology perturbation) that nobody had tried for the prior days. There may be one more such move at 64→63.
+- **The kissat full-circuit UNSAT proof is the only thing that would have certified optimality.** It was attempted (G=63, 16h 35m) but is intractable in any reasonable time/cost budget on a shared VPS.
+
+### Defensible writeup phrasing
+> 64 gates with strong empirical optimality evidence: 124 distinct 64-gate solutions across 600+ SAT-based optimization configurations, multiple independent tools (eSLIM, mockturtle, ABC) all saturating at or above 64 with consistent 6-NOT signature. Formal optimality proof attempted via direct kissat on a custom DIMACS exact-synthesis encoding at G=63, but the 9-output 8-input multi-output SAT instance (5.2 GB CNF, 194M clauses) is on the practical edge of intractability and did not terminate within a 16-hour budget. We believe 64 is optimal but do not have a proof.
 
 ## What's still open
 
-- Multi-output Cirbo SAT for the full circuit at G=70..74 — ran 5+ min at G=84 without convergence; would need days.
-- mockturtle's `xag_minmc_resynthesis` with NPN5/NPN6 databases — gave 78 on initial run; longer runs / different parameters could push lower.
-- AlphaEvolve-style mutation loop with frontier-LLM proposals — most likely path to break the local optimum below 74.
+- **AlphaEvolve-style mutation loop with frontier-LLM proposals** — highest-EV remaining lever; will be run on Alan's own machine post-VPS-shutdown.
+- **Multi-day kissat / Cirbo full-circuit SAT at G=63** on a dedicated CPU box — would either prove 64 is optimal (UNSAT) or yield the missing 63-gate netlist (SAT). Right hardware: cheap many-core CPU with no GPU, run for 1-2 weeks.
+- **Custom symmetry-breaking / structural-hint augmentations to the SAT encoding** — could collapse the search space enough to make G=63 tractable in days rather than weeks.
