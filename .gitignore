@@ -13,3 +13,6 @@ paper/*.bbl
 paper/*.blg
 paper/*.synctex.gz
 
+.claude/
+abc.history
+experiments/data/

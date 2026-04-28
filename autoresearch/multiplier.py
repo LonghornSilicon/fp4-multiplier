@@ -1,5 +1,5 @@
 """
-FP4xFP4 -> QI9 Multiplier -- Current Best Circuit (86 gates)
+FP4xFP4 -> QI9 Multiplier -- Current Best Circuit (84 gates)
 
 Run: python eval_circuit.py autoresearch/multiplier.py
      python autoresearch/run.py
@@ -11,6 +11,7 @@ Gate count history:
    89 -> v4  (zero=000 encoding + K-flag masking)
    88 -> v4b (+ sh6=u11 decoder optimization)
    86 -> v4c (+ prefix-OR conditional negation)
+   84 -> v4d (+ prefix_or_7=nz: sp7=res0, saves p7+sp7 gates)
 
 ---
 
@@ -40,10 +41,10 @@ Gate breakdown:
   S decoder:  13   3 NOT + 4 pair-AND + 6 sh (sh6=u11 saves 1 vs naive 14)
   AND-terms:  18   7 nmcxsh + 6 k3xsh + 5 k9xsh
   Mag bits:   15   OR assembly for 8 magnitude output bits
-  Cond neg:   20   prefix-OR formula: 6 OR + 7 AND + 7 XOR (saves 2 vs carry chain)
-  Sign mask:   1   AND(sign, nz)
+  Cond neg:   18   prefix-OR: 5 OR + 6 AND + 7 XOR; sp7=res0 saves 2 gates
+  Sign mask:   1   AND(sign, nz) = res0, also used as sp7
   ------------------
-  Total:      86
+  Total:      84
 
 Cond-neg derivation (prefix-OR formula):
   For 2's complement negation of an 8-bit value (applied when sign=1):
@@ -132,27 +133,35 @@ def write_your_multiplier_here(a0, a1, a2, a3, b0, b1, b2, b3,
     m1 = OR(nmc1, OR(k3_2, k9_3))
     m0 = OR(nmc0, OR(k3_1, k9_2))
 
-    # Conditional 2's complement negation via prefix-OR formula (20 gates):
+    # Sign masking (1 gate): also serves as prefix_or_7 (proved below).
+    res0 = AND(sign, nz)
+
+    # Conditional 2's complement negation via prefix-OR formula (18 gates):
     # result_i = XOR(m_i, AND(sign, prefix_or_i))
     # where prefix_or_i = OR(m_0, ..., m_{i-1})
     # LSB r8 = m0 (passthrough: prefix_or_0 is empty = 0, no gate needed).
     #
-    # Prefix-OR chain (6 gates):
+    # Optimization: prefix_or_7 = OR(m0..m6) = nz for all achievable FP4 products.
+    # Proof: all 18 non-zero magnitudes have >= 1 bit in positions 0..6.
+    #   (Magnitude 144 = 0b10010000 has m4=1 as well as m7=1.)
+    # Therefore sp7 = AND(sign, prefix_or_7) = AND(sign, nz) = res0 (0 extra gates).
+    # Saves: 1 OR gate (p7) + 1 AND gate (sp7) = 2 gates total.
+    #
+    # Prefix-OR chain (5 gates):
     p2 = OR(m0, m1);   p3 = OR(p2, m2);   p4 = OR(p3, m3)
-    p5 = OR(p4, m4);   p6 = OR(p5, m5);   p7 = OR(p6, m6)
+    p5 = OR(p4, m4);   p6 = OR(p5, m5)
+    # p7 = OR(p6, m6) eliminated: use res0 = AND(sign, nz) instead of AND(sign, p7)
 
-    # AND with sign (7 gates):
+    # AND with sign (6 gates):
     sp1 = AND(sign, m0)   # prefix_or_1 = m0, no extra OR needed
     sp2 = AND(sign, p2);  sp3 = AND(sign, p3);  sp4 = AND(sign, p4)
-    sp5 = AND(sign, p5);  sp6 = AND(sign, p6);  sp7 = AND(sign, p7)
+    sp5 = AND(sign, p5);  sp6 = AND(sign, p6)
+    # sp7 = AND(sign, p7) = res0 (already computed above)
 
     # XOR with magnitude (7 gates) + LSB passthrough:
     r8 = m0
     r7 = XOR(m1, sp1);  r6 = XOR(m2, sp2);  r5 = XOR(m3, sp3)
     r4 = XOR(m4, sp4);  r3 = XOR(m5, sp5);  r2 = XOR(m6, sp6)
-    r1 = XOR(m7, sp7)
-
-    # Sign masking (1 gate): magnitude auto-zeros via K-masking; only sign bit needs mask
-    res0 = AND(sign, nz)
+    r1 = XOR(m7, res0)  # sp7 = res0 = AND(sign, nz) = AND(sign, prefix_or_7)
 
     return res0, r1, r2, r3, r4, r5, r6, r7, r8

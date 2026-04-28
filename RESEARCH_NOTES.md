@@ -182,9 +182,17 @@ This eliminates 3 AND-terms (k9_0, k9_1, k3_0), reducing from 21 to **18 AND-ter
 - Total: 6+7+7 = **20 gates** (down from 22), saving 2 gates
 - Correctness: prefix_or_0 is empty (=0), so r8=XOR(m0,0)=m0 (free); for sign=0 all sp_i=0 so r_i=m_i (magnitude pass-through); for sign=1 r_i = XOR(m_i, OR(m_0..m_{i-1})) which is exactly 2's complement negation
 
+### v4c → v4d: sp7 = res0 alias from prefix_or_7 = nz (86→84 gates, −2)
+- **Key observation**: prefix_or_7 = OR(m_0, ..., m_6). For all 19 reachable product magnitudes, this OR equals nz.
+- **Why**: The only product magnitude with bit 7 set is 144 (= 9×16, K=9 case at maximum shift), and 144 = 0b10010000 also has bit 4 set. Therefore every non-zero magnitude has at least one bit in positions 0..6 set → prefix_or_7 = nz.
+- **Consequence**: sp7 = AND(sign, prefix_or_7) = AND(sign, nz) = res0 (already computed in the sign-mask stage).
+- **Eliminations**: drop the p7 = OR(p6, m6) gate AND the sp7 = AND(sign, p7) gate; reuse res0 directly in the MSB XOR (`r1 = XOR(m7, res0)`).
+- **Cond_neg total**: 5 OR + 6 AND + 7 XOR = **18 gates** (down from 20).
+- **Note**: this saving is *structural* (depends on the 19-magnitude set being reachable), not generic to 8-bit conditional negation. It only kicks in because the reachable output set is sparse.
+
 ---
 
-## Final Gate Count: 86
+## Final Gate Count: 84
 
 | Stage | Gates | Notes |
 |:---|:---:|:---|
@@ -196,9 +204,9 @@ This eliminates 3 AND-terms (k9_0, k9_1, k3_0), reducing from 21 to **18 AND-ter
 | S decoder | 13 | 3 NOT + 4 pair-AND + 6 sh (sh6=u11) |
 | AND-terms | 18 | 7 nmc + 6 k3 + 5 k9 terms |
 | Magnitude OR | 15 | OR assembly for m0..m7 |
-| Conditional negation | 20 | Prefix-OR formula: 6 OR + 7 AND + 7 XOR (r8=m0 free) |
-| Sign mask | 1 | AND(sign, nz) |
-| **Total** | **86** | |
+| Conditional negation | 18 | Prefix-OR formula: 5 OR + 6 AND + 7 XOR (r8=m0 free, sp7=res0) |
+| Sign mask | 1 | AND(sign, nz), also serves as sp7 |
+| **Total** | **84** | |
 
 ---
 
@@ -236,10 +244,21 @@ Each stage appears near-optimal:
 - **S decoder** (13 gates): Near-optimal 3→7 one-hot with sharing; sh6=u11 eliminates 1 redundant AND
 - **AND-terms** (18 gates): 7+6+5, determined by number of valid K×S combinations
 - **Magnitude OR** (15 gates): Optimal binary OR tree given 0+1+2+3+3+2+2+2 terms per bit
-- **Cond neg** (20 gates): Prefix-OR formula; r8=m0 free; 6+7+7 structure; further reduction would require sharing sp_i gates with other stages (no shared operands exist)
+- **Cond neg** (18 gates): Prefix-OR formula; r8=m0 free; sp7=res0 (from P_7=nz reachability); 5+6+7 structure; further reduction would require sharing sp_i gates with other stages (no shared operands exist)
 - **Sign mask** (1 gate): Minimum for gating sign with nz
 
-**Estimated lower bound**: ~75–85 gates (based on per-stage minimums; achieving this would require cross-stage sharing not visible in this structural decomposition).
+**Estimated lower bound (structural decomposition)**: ~75–84 gates. Achieving below this would require either cross-stage sharing not visible in this decomposition, or a fundamentally different topology.
+
+**Empirical evidence from automated synthesis (added 2026-04-28)**:
+
+| Sub-function | Inputs/Outputs | Hand-crafted | ABC `compress2rs` (AIG) |
+|:---|:---:|:---:|:---:|
+| S-decoder | 3 / 7 | 13 (incl. 3 NOTs) | 11 ANDs |
+| E-sum + decoder | 4 / 7 | 20 | 21 ANDs |
+| Magnitude | 6 / 8 | 46 | 109 ANDs |
+| Full circuit | 8 / 9 | 84 | 274 ANDs |
+
+ABC operating on the flat PLA truth table cannot beat the hand decomposition for the larger functions; structural sharing across the K-flag / S-decoder / mag-OR boundary is invisible from the PLA. ABC is *better* on the standalone S-decoder (11 ANDs vs. our 10 ANDs + 3 NOTs = 13 gates), but those NOTs feed many downstream gates and are essentially free in our basis. The path to <70 likely runs through one of: (a) Cirbo's SAT-based subcircuit-replacement on our existing 84-gate netlist (k_max=8 windows), (b) exact synthesis on the magnitude-only block, or (c) a different topology (e.g. direct signed computation) that exposes new sharing.
 
 ---
 
@@ -261,7 +280,7 @@ The circuit passes all 256 FP4×FP4 input pair tests via `eval_circuit.evaluate_
 
 ```bash
 python eval_circuit.py autoresearch/multiplier.py
-# Result: CORRECT, Gates: 88 (max per pair)
+# Result: CORRECT, Gates: 84 (max per pair)
 
 python etched_take_home_multiplier_assignment.py
 # Should pass all 256 asserts
@@ -269,4 +288,4 @@ python etched_take_home_multiplier_assignment.py
 
 ---
 
-*Research conducted 2026-04-27. Gate count reduced from flat SOP baseline (~288) to structural approach (88) through progressive mathematical insight and systematic optimization.*
+*Research conducted 2026-04-27 / extended 2026-04-28. Gate count reduced from flat SOP baseline (~288) to structural approach (84) through progressive mathematical insight and systematic optimization.*

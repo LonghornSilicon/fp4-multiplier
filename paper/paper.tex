@@ -37,7 +37,7 @@ A Structural Decomposition Approach}}
 \maketitle
 
 \begin{abstract}
-We present a \textbf{86-gate} Boolean circuit that correctly computes the product of two
+We present an \textbf{84-gate} Boolean circuit that correctly computes the product of two
 4-bit floating-point (FP4, E2M1 format) numbers and returns the result as a
 9-bit fixed-point integer (QI9, where the LSB has value $\frac{1}{4}$).
 The circuit uses only two-input AND, OR, XOR gates and one-input NOT gates,
@@ -67,7 +67,7 @@ since the same remapping must be applied to each operand.
 Output remapping is not permitted.
 
 This paper describes the systematic approach we used to reduce
-the gate count from $\sim$288 (na\"ive) to \textbf{86} gates.
+the gate count from $\sim$288 (na\"ive) to \textbf{84} gates.
 
 \section{Mathematical Structure of FP4}
 
@@ -201,7 +201,7 @@ Figure~\ref{fig:arch} shows the 5-stage pipeline.
     \node[block] (sign) {Stage 1: Sign\\$\text{sign} = a_0 \oplus b_0$\\1 gate};
     \node[block, below=0.3cm of sign] (nz) {Stage 2: Zero Detect\\$\text{nz} = \text{nz}_a \wedge \text{nz}_b$\\5 gates};
     \node[block, below=0.3cm of nz] (mag) {Stage 3: Magnitude Circuit\\E-sum, K-flags, K-mask,\\decoder, AND-terms, OR-asm\\59 gates};
-    \node[block, below=0.3cm of mag] (cond) {Stage 4: Cond.\ Negation\\prefix-OR formula ($r_8 = m_0$)\\20 gates};
+    \node[block, below=0.3cm of mag] (cond) {Stage 4: Cond.\ Negation\\prefix-OR formula ($r_8 = m_0$, $\text{sp}_7 = \text{res}_0$)\\18 gates};
     \node[block, below=0.3cm of cond] (mask) {Stage 5: Sign Mask\\$\text{res}_0 = \text{sign} \wedge \text{nz}$\\1 gate};
 
     \draw[arrow] (sign) -- (nz);
@@ -209,7 +209,7 @@ Figure~\ref{fig:arch} shows the 5-stage pipeline.
     \draw[arrow] (mag) -- (cond);
     \draw[arrow] (cond) -- (mask);
   \end{tikzpicture}
-  \caption{5-stage multiplier pipeline. Total: 86 gates.}
+  \caption{5-stage multiplier pipeline. Total: 84 gates.}
   \label{fig:arch}
 \end{figure}
 
@@ -281,11 +281,18 @@ where $P_i = \text{OR}(m_0, \ldots, m_{i-1})$ is a prefix-OR. The signed result 
 
 This replaces the carry chain ($8 + 7 + 7 = 22$ gates) with:
 \begin{itemize}
-  \item 6 OR gates for the prefix chain: $p_2 = m_0 \vee m_1$, $p_3 = p_2 \vee m_2$, \ldots
-  \item 7 AND gates: $\text{sp}_i = \text{sign} \wedge p_i$ (using $p_1 = m_0$ directly)
+  \item 5 OR gates for the prefix chain: $p_2 = m_0 \vee m_1$, $p_3 = p_2 \vee m_2$, \ldots, $p_6$
+  \item 6 AND gates: $\text{sp}_i = \text{sign} \wedge p_i$ for $i \in \{1,\ldots,6\}$ (using $p_1 = m_0$ directly)
   \item 7 XOR gates: $r_i = m_i \oplus \text{sp}_i$, plus $r_8 = m_0$
 \end{itemize}
-Total: $6 + 7 + 7 = \mathbf{20}$ gates, saving 2 over the carry chain.
+Total: $5 + 6 + 7 = \mathbf{18}$ gates, saving 4 over the carry chain.
+
+\textbf{Optimization 3 --- $\text{sp}_7 = \text{res}_0$ alias}: The MSB conditional-negation
+signal $\text{sp}_7 = \text{sign} \wedge P_7$ where $P_7 = \bigvee_{i=0}^{6} m_i$.
+For all 19 reachable product magnitudes, at least one of the bits $m_0, \ldots, m_6$ is set
+whenever any $m_i$ is set (the only magnitude with $m_7 = 1$ is $144$, which also has $m_4 = 1$).
+Therefore $P_7 = \text{nz}$, and $\text{sp}_7 = \text{sign} \wedge \text{nz} = \text{res}_0$.
+This eliminates one OR ($p_7$) and one AND ($\text{sp}_7$), saving 2 more gates.
 
 \section{Zero Handling}
 
@@ -326,7 +333,8 @@ Table~\ref{tab:history} shows the optimization history.
     v3 & Direct formula, no subtractor & 101 & 25 \\
     v4 & Zero=000, K-flag masking, $r_8=m_0$ & 89 & 12 \\
     v4b & S decoder: $\text{sh}_6=u_{11}$ & 88 & 1 \\
-    \textbf{v4c} & Prefix-OR conditional negation & \textbf{86} & 2 \\
+    v4c & Prefix-OR conditional negation & 86 & 2 \\
+    \textbf{v4d} & $\text{sp}_7 = \text{res}_0$ alias ($P_7 = \text{nz}$) & \textbf{84} & 2 \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -335,7 +343,7 @@ Table~\ref{tab:breakdown} shows the per-stage breakdown of the final circuit.
 
 \begin{table}[h]
   \centering
-  \caption{Final circuit gate breakdown (86 total).}
+  \caption{Final circuit gate breakdown (84 total).}
   \label{tab:breakdown}
   \begin{tabular}{lcc}
     \toprule
@@ -348,11 +356,11 @@ Table~\ref{tab:breakdown} shows the per-stage breakdown of the final circuit.
     K-masking & 3 & 3.5\% \\
     S decoder & 13 & 15.1\% \\
     AND-terms & 18 & 20.9\% \\
-    Magnitude OR assembly & 15 & 17.4\% \\
-    Conditional negation & 20 & 23.3\% \\
+    Magnitude OR assembly & 15 & 17.9\% \\
+    Conditional negation & 18 & 21.4\% \\
     Sign masking & 1 & 1.2\% \\
     \midrule
-    \textbf{Total} & \textbf{86} & 100\% \\
+    \textbf{Total} & \textbf{84} & 100\% \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -414,7 +422,7 @@ FP4$\times$FP4 input pairs using a monkey-patched gate counter:
 \begin{itemize}
   \item \textbf{Correctness}: all 256 pairs produce the correct QI9 value,
         verified by comparison against $\text{round}(a \times b \times 4)$ in float32.
-  \item \textbf{Gate count}: the maximum gates activated per input pair is 86,
+  \item \textbf{Gate count}: the maximum gates activated per input pair is 84,
         consistent with the structural analysis (no data-dependent branches in
         Python functions yield a constant gate count across inputs).
 \end{itemize}
@@ -447,7 +455,7 @@ Several avenues remain for further reduction:
 
 \section{Conclusions}
 
-We designed an 86-gate Boolean circuit for FP4$\times$FP4 multiplication,
+We designed an 84-gate Boolean circuit for FP4$\times$FP4 multiplication,
 achieving a $70\%$ reduction from the na\"ive flat-SOP baseline of $\sim$288 gates.
 The key contributions are:
 
@@ -459,9 +467,11 @@ The key contributions are:
         the subtractor previously needed for exponent adjustment.
   \item A zero=000 encoding with K-flag masking that reduces zero-handling
         overhead from 19 to 9 gates.
-  \item Three micro-optimizations: the $\text{sh}_6 = u_{11}$ decoder simplification,
-        the LSB pass-through in conditional negation, and the prefix-OR formula
-        that replaces the 22-gate carry chain with a 20-gate parallel structure.
+  \item Four micro-optimizations: the $\text{sh}_6 = u_{11}$ decoder simplification,
+        the LSB pass-through in conditional negation, the prefix-OR formula
+        that replaces the 22-gate carry chain with an 18-gate parallel structure,
+        and the $\text{sp}_7 = \text{res}_0$ alias arising from the structural
+        identity $P_7 = \text{nz}$ on the 19 reachable product magnitudes.
 \end{enumerate}
 
 The final circuit, with a per-stage lower-bound analysis, suggests
