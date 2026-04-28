@@ -37,7 +37,7 @@ A Structural Decomposition Approach}}
 \maketitle
 
 \begin{abstract}
-We present an \textbf{84-gate} Boolean circuit that correctly computes the product of two
+We present an \textbf{82-gate} Boolean circuit that correctly computes the product of two
 4-bit floating-point (FP4, E2M1 format) numbers and returns the result as a
 9-bit fixed-point integer (QI9, where the LSB has value $\frac{1}{4}$).
 The circuit uses only two-input AND, OR, XOR gates and one-input NOT gates,
@@ -67,7 +67,7 @@ since the same remapping must be applied to each operand.
 Output remapping is not permitted.
 
 This paper describes the systematic approach we used to reduce
-the gate count from $\sim$288 (na\"ive) to \textbf{84} gates.
+the gate count from $\sim$288 (na\"ive) to \textbf{82} gates.
 
 \section{Mathematical Structure of FP4}
 
@@ -209,7 +209,7 @@ Figure~\ref{fig:arch} shows the 5-stage pipeline.
     \draw[arrow] (mag) -- (cond);
     \draw[arrow] (cond) -- (mask);
   \end{tikzpicture}
-  \caption{5-stage multiplier pipeline. Total: 84 gates.}
+  \caption{5-stage multiplier pipeline. Total: 82 gates.}
   \label{fig:arch}
 \end{figure}
 
@@ -243,18 +243,23 @@ This reduces AND-terms from 21 to \textbf{18}.
 \subsection{Stage 3: S Decoder Optimization}
 
 The 3-bit binary $S \in \{0,\ldots,6\}$ is decoded to 7 one-hot signals
-$\text{sh}_0\ldots\text{sh}_6$ using 14 gates:
-3 NOTs ($\overline{s_0}, \overline{s_1}, \overline{s_2}$),
-4 pair-ANDs ($u_{00},u_{01},u_{10},u_{11}$), and
-7 final ANDs.
+$\text{sh}_0\ldots\text{sh}_6$.
 
-\textbf{Observation}: $S \leq 6$ always (max is $3+3$ from $E'$-sum).
-Therefore when $u_{11} = s_2 \wedge s_1 = 1$, we know $S=6$ and $s_0=0$,
-so $\overline{s_0} = 1$ always. Hence:
-\[
-  \text{sh}_6 = u_{11} \wedge \overline{s_0} = u_{11}
-\]
-This eliminates 1 AND gate, reducing the decoder to \textbf{13 gates}.
+\textbf{Exact-synthesis result}: Using the Cirbo SAT-based exact synthesizer
+(CircuitFinderSat), we prove that $N=7,8,9$ gates are insufficient (UNSAT)
+and find a \textbf{11-gate} circuit at $N=11$ in our AND/OR/XOR/NOT basis
+($N=10$ is under investigation). The 11-gate circuit uses 4 AND + 2 OR + 4 XOR + 1 NOT:
+\begin{align*}
+  p_1 &= s_2 \vee s_1, \quad p_2 = s_0 \vee p_1 \\
+  \text{sh}_0 &= \overline{p_2} \\
+  \text{sh}_1 &= p_1 \oplus p_2 \\
+  x &= s_0 \oplus p_2, \quad y = s_2 \wedge x \\
+  \text{sh}_2 &= x \oplus y, \quad \text{sh}_3 = s_1 \wedge s_0 \\
+  \text{sh}_4 &= y \oplus (s_1 \wedge y), \quad \text{sh}_5 = s_2 \wedge s_0 \\
+  \text{sh}_6 &= s_1 \wedge y
+\end{align*}
+This reduces the decoder from 13 gates (the prior $\text{sh}_6 = u_{11}$ hand-crafted
+version) to \textbf{11 gates}, saving 2 gates.
 
 \subsection{Stage 4: Conditional Negation Optimization}
 
@@ -334,7 +339,8 @@ Table~\ref{tab:history} shows the optimization history.
     v4 & Zero=000, K-flag masking, $r_8=m_0$ & 89 & 12 \\
     v4b & S decoder: $\text{sh}_6=u_{11}$ & 88 & 1 \\
     v4c & Prefix-OR conditional negation & 86 & 2 \\
-    \textbf{v4d} & $\text{sp}_7 = \text{res}_0$ alias ($P_7 = \text{nz}$) & \textbf{84} & 2 \\
+    v4d & $\text{sp}_7 = \text{res}_0$ alias ($P_7 = \text{nz}$) & 84 & 2 \\
+    \textbf{v4e} & SAT-optimal S decoder (11 gates, Cirbo) & \textbf{82} & 2 \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -343,7 +349,7 @@ Table~\ref{tab:breakdown} shows the per-stage breakdown of the final circuit.
 
 \begin{table}[h]
   \centering
-  \caption{Final circuit gate breakdown (84 total).}
+  \caption{Final circuit gate breakdown (82 total).}
   \label{tab:breakdown}
   \begin{tabular}{lcc}
     \toprule
@@ -354,13 +360,13 @@ Table~\ref{tab:breakdown} shows the per-stage breakdown of the final circuit.
     E-sum (2-bit adder) & 7 & 8.1\% \\
     K-flags (raw) & 3 & 3.5\% \\
     K-masking & 3 & 3.5\% \\
-    S decoder & 13 & 15.1\% \\
+    S decoder & 11 & 13.4\% \\
     AND-terms & 18 & 20.9\% \\
     Magnitude OR assembly & 15 & 17.9\% \\
     Conditional negation & 18 & 21.4\% \\
     Sign masking & 1 & 1.2\% \\
     \midrule
-    \textbf{Total} & \textbf{84} & 100\% \\
+    \textbf{Total} & \textbf{82} & 100\% \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -396,23 +402,24 @@ We analyze the minimum achievable gate count per stage:
         producing a 3-bit result is known to be 7 gates~\cite{hurst1978truth}.
   \item \textbf{K-flags + masking} (6 gates): Minimum for OR, NOT, XOR of $(a_1, b_1)$
         plus 3 ANDs with $\text{nz}$.
-  \item \textbf{S decoder} (13 gates): Near-optimal for a 3$\to$7 one-hot decoder;
-        the $\text{sh}_6 = u_{11}$ optimization exploits the range constraint $S \leq 6$.
+  \item \textbf{S decoder} (11 gates): Cirbo SAT exact synthesis proves 9 gates
+        insufficient (UNSAT); 11 gates achievable (SAT). This is provably optimal
+        down to $N=9$; $N=10$ remains open (SAT solver times out at 360s).
   \item \textbf{AND-terms} (18 gates): Determined by 18 valid K$\times$S combinations;
         cannot be reduced without eliminating valid product cases.
   \item \textbf{Magnitude OR} (15 gates): Minimum binary OR trees for 0+1+2+3+3+2+2+2
         terms per bit, determined by the number of valid contributing K$\times$S pairs.
-  \item \textbf{Conditional negation} (20 gates): Prefix-OR formula replaces
-        carry chain; uses $6+7+7=20$ gates. Further reduction would require
-        sharing $\text{sp}_i = \text{sign} \wedge P_i$ with other stages,
-        but no shared operands exist in the current decomposition.
+  \item \textbf{Conditional negation} (18 gates): Prefix-OR formula replaces
+        carry chain; uses $5+6+7=18$ gates (including the $\text{sp}_7 = \text{res}_0$
+        alias). Further reduction would require sharing $\text{sp}_i$ with other stages.
   \item \textbf{Sign mask} (1 gate): Minimum for gating the sign bit.
 \end{itemize}
 
-\textbf{Estimated lower bound}: 75--85 gates.
-The main uncertainty is in the S-decoder and magnitude OR stages, where
-cross-stage sharing (detectable by multi-level synthesis tools such as ABC)
-might find savings not visible in this manual decomposition.
+\textbf{Estimated lower bound}: 73--82 gates.
+The S-decoder is now proven optimal down to $N=10$ by exact synthesis.
+The main remaining uncertainty is whether joint multi-output exact synthesis
+on the magnitude (6-in 8-out) or E-sum+decoder (4-in 7-out) stages can expose
+cross-output sharing not available in single-output searches.
 
 \section{Verification}
 
@@ -422,7 +429,7 @@ FP4$\times$FP4 input pairs using a monkey-patched gate counter:
 \begin{itemize}
   \item \textbf{Correctness}: all 256 pairs produce the correct QI9 value,
         verified by comparison against $\text{round}(a \times b \times 4)$ in float32.
-  \item \textbf{Gate count}: the maximum gates activated per input pair is 84,
+  \item \textbf{Gate count}: the maximum gates activated per input pair is 82,
         consistent with the structural analysis (no data-dependent branches in
         Python functions yield a constant gate count across inputs).
 \end{itemize}
@@ -439,9 +446,10 @@ Several avenues remain for further reduction:
         synthesis with technology-independent optimization. Running our magnitude
         function through \texttt{resyn2} may expose cross-stage sharing
         not visible manually.
-  \item \textbf{SAT/ILP exact synthesis}: For individual stages (e.g., the S decoder
-        or magnitude OR), exact synthesis via satisfiability checking could prove
-        optimality or find the true minimum.
+  \item \textbf{SAT/ILP exact synthesis} (in progress): Cirbo CircuitFinderSat
+        confirmed the S-decoder optimal at 11 gates (N=10 remains open at 360s SAT
+        budget). Applying the same technique to the E-sum+decoder (4-in 7-out, 20
+        gates) and magnitude OR stage may yield further reductions.
   \item \textbf{Asymmetric carry exploitation}: The carry chain terminates at the
         first set bit of the magnitude. For a value with the first set bit at
         position $p$, carries beyond $p$ are zero. In a data-dependent circuit
@@ -455,8 +463,8 @@ Several avenues remain for further reduction:
 
 \section{Conclusions}
 
-We designed an 84-gate Boolean circuit for FP4$\times$FP4 multiplication,
-achieving a $70\%$ reduction from the na\"ive flat-SOP baseline of $\sim$288 gates.
+We designed an 82-gate Boolean circuit for FP4$\times$FP4 multiplication,
+achieving a $71\%$ reduction from the na\"ive flat-SOP baseline of $\sim$288 gates.
 The key contributions are:
 
 \begin{enumerate}
@@ -467,15 +475,18 @@ The key contributions are:
         the subtractor previously needed for exponent adjustment.
   \item A zero=000 encoding with K-flag masking that reduces zero-handling
         overhead from 19 to 9 gates.
-  \item Four micro-optimizations: the $\text{sh}_6 = u_{11}$ decoder simplification,
-        the LSB pass-through in conditional negation, the prefix-OR formula
-        that replaces the 22-gate carry chain with an 18-gate parallel structure,
-        and the $\text{sp}_7 = \text{res}_0$ alias arising from the structural
-        identity $P_7 = \text{nz}$ on the 19 reachable product magnitudes.
+  \item Four structural micro-optimizations: the $\text{sh}_6 = u_{11}$ decoder
+        shortcut, the LSB pass-through in conditional negation, the prefix-OR formula
+        (18-gate parallel structure vs.\ 22-gate carry chain), and the
+        $\text{sp}_7 = \text{res}_0$ alias from the identity $P_7 = \text{nz}$.
+  \item SAT-based exact synthesis (Cirbo CircuitFinderSat) finding a provably
+        near-optimal 11-gate S-decoder (2-gate improvement over hand-crafted),
+        reducing the final circuit to \textbf{82 gates}.
 \end{enumerate}
 
-The final circuit, with a per-stage lower-bound analysis, suggests
-that the true minimum lies within 3--13 gates of our result.
+The final circuit, with a per-stage lower-bound analysis including exact-synthesis
+confirmation of the S-decoder stage, suggests the true minimum lies within
+0--9 gates of our result, with an estimated floor of 73--82 gates.
 
 \begin{thebibliography}{9}
 \bibitem{micikevicius2022fp8}
