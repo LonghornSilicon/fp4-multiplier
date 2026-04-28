@@ -1,34 +1,35 @@
 """
-FP4×FP4 → QI9 Multiplier — Current Best Circuit (88 gates)
+FP4xFP4 -> QI9 Multiplier -- Current Best Circuit (86 gates)
 
 Run: python eval_circuit.py autoresearch/multiplier.py
      python autoresearch/run.py
 
 Gate count history:
-  135 → v1 (canonical M-E encoding, structural)
-  126 → v2 (shared K×shift precomputation)
-  101 → v3 (direct formula, no subtractor)
-   89 → v4  (zero=000 encoding + K-flag masking)
-   88 → v4b (+ sh6=u11 decoder optimization)
+  135 -> v1 (canonical M-E encoding, structural)
+  126 -> v2 (shared Kxshift precomputation)
+  101 -> v3 (direct formula, no subtractor)
+   89 -> v4  (zero=000 encoding + K-flag masking)
+   88 -> v4b (+ sh6=u11 decoder optimization)
+   86 -> v4c (+ prefix-OR conditional negation)
 
 ---
 
 Encoding (4-bit code = sign | a1 a2 a3):
-  magnitude code 000 → zero (both +0 and -0)
-  magnitude code 001 → 1.5  (M=1, E=0,  E'=1)
-  magnitude code 010 → 3.0  (M=1, E=1,  E'=2)
-  magnitude code 011 → 6.0  (M=1, E=2,  E'=3)
-  magnitude code 100 → 0.5  (M=0, E=-1, E'=0)
-  magnitude code 101 → 1.0  (M=0, E=0,  E'=1)
-  magnitude code 110 → 2.0  (M=0, E=1,  E'=2)
-  magnitude code 111 → 4.0  (M=0, E=2,  E'=3)
+  magnitude code 000 -> zero (both +0 and -0)
+  magnitude code 001 -> 1.5  (M=1, E=0,  E'=1)
+  magnitude code 010 -> 3.0  (M=1, E=1,  E'=2)
+  magnitude code 011 -> 6.0  (M=1, E=2,  E'=3)
+  magnitude code 100 -> 0.5  (M=0, E=-1, E'=0)
+  magnitude code 101 -> 1.0  (M=0, E=0,  E'=1)
+  magnitude code 110 -> 2.0  (M=0, E=1,  E'=2)
+  magnitude code 111 -> 4.0  (M=0, E=2,  E'=3)
 
 Key mathematical structure:
-  All non-zero FP4 magnitudes = 1.5^M × 2^E, M∈{0,1}, E∈{-1,0,1,2}.
-  Product magnitude = 1.5^M_sum × 2^S, where:
-    M_sum = M_a + M_b ∈ {0,1,2}   (K-type: 1, 3/2, 9/4)
-    S = E'_a + E'_b ∈ {0,...,6}   (shift, E'=E+1)
-  Output bit i: m_i = (not_k9 ∧ S=i) ∨ (k3 ∧ S=i+1) ∨ (k9 ∧ S=i-1) ∨ (k9 ∧ S=i+2)
+  All non-zero FP4 magnitudes = 1.5^M x 2^E, M in {0,1}, E in {-1,0,1,2}.
+  Product magnitude = 1.5^M_sum x 2^S, where:
+    M_sum = M_a + M_b in {0,1,2}   (K-type: 1, 3/2, 9/4)
+    S = E'_a + E'_b in {0,...,6}   (shift, E'=E+1)
+  Output bit i: m_i = (not_k9 & S=i) | (k3 & S=i+1) | (k9 & S=i-1) | (k9 & S=i+2)
 
 Gate breakdown:
   sign:        1   XOR(a0,b0)
@@ -37,12 +38,24 @@ Gate breakdown:
   K-flags:     3   OR(a1,b1), NOT, XOR(a1,b1)
   K-masking:   3   AND each K-flag with nz
   S decoder:  13   3 NOT + 4 pair-AND + 6 sh (sh6=u11 saves 1 vs naive 14)
-  AND-terms:  18   7 nmc×sh + 6 k3×sh + 5 k9×sh
+  AND-terms:  18   7 nmcxsh + 6 k3xsh + 5 k9xsh
   Mag bits:   15   OR assembly for 8 magnitude output bits
-  Cond neg:   22   carry chain (r8=m0 pass-through saves 1 gate)
+  Cond neg:   20   prefix-OR formula: 6 OR + 7 AND + 7 XOR (saves 2 vs carry chain)
   Sign mask:   1   AND(sign, nz)
-  ─────────────────
-  Total:      88
+  ------------------
+  Total:      86
+
+Cond-neg derivation (prefix-OR formula):
+  For 2's complement negation of an 8-bit value (applied when sign=1):
+    neg(x)_i = NOT(m_i) XOR carry_i
+    carry_i  = 1 iff m_0 = m_1 = ... = m_{i-1} = 0
+             = NOT(OR(m_0, ..., m_{i-1}))
+             = NOT(prefix_or_i)
+  So: neg(x)_i = NOT(m_i) XOR NOT(prefix_or_i) = XOR(m_i, prefix_or_i)
+  And: result_i = m_i             (sign=0, no negation)
+                = XOR(m_i, prefix_or_i)  (sign=1, negate)
+  Combined:     result_i = XOR(m_i, AND(sign, prefix_or_i))
+  LSB (i=0):    prefix_or_0 = 0, result_0 = m_0 (unchanged -- passthrough r8=m0).
 """
 
 from eval_circuit import FP4_TABLE
@@ -65,30 +78,30 @@ def write_your_multiplier_here(a0, a1, a2, a3, b0, b1, b2, b3,
         OR  = lambda x, y: x | y
         XOR = lambda x, y: x ^ y
 
-    # sign
+    # sign (1 gate)
     sign = XOR(a0, b0)
 
-    # non-zero detection (nz=1 iff both inputs non-zero)
+    # non-zero detection (5 gates)
     or_a23 = OR(a2, a3);   nz_a = OR(a1, or_a23)
     or_b23 = OR(b2, b3);   nz_b = OR(b1, or_b23)
     nz = AND(nz_a, nz_b)
 
-    # E-sum: S = (a2,a3) + (b2,b3), 3-bit
+    # E-sum: S = (a2,a3) + (b2,b3), 3-bit result (7 gates)
     s0  = XOR(a3, b3);  c0  = AND(a3, b3)
     s1x = XOR(a2, b2);  s1  = XOR(s1x, c0)
     s2  = OR(AND(a2, b2), AND(s1x, c0))
 
-    # K-flags (M=NOT(a1); k9=NOR(a1,b1), k3=XOR(a1,b1), not_k9=OR(a1,b1))
+    # K-flags (3 gates): M=NOT(a1); k9=NOR(a1,b1), k3=XOR(a1,b1), not_k9=OR(a1,b1)
     or_a1b1 = OR(a1, b1)
     k9_raw  = NOT(or_a1b1)
     k3_raw  = XOR(a1, b1)
 
-    # Mask K-flags with nz → all magnitude bits auto-zero when any input is zero
-    nmc = AND(or_a1b1, nz)   # not_k9 × nz
+    # Mask K-flags with nz (3 gates): magnitude bits auto-zero when any input is zero
+    nmc = AND(or_a1b1, nz)   # not_k9 x nz
     k3  = AND(k3_raw,  nz)
     k9  = AND(k9_raw,  nz)
 
-    # S decoder (one-hot, S∈{0..6}; sh6=u11 since S≤6 guarantees s0=0 when u11=1)
+    # S decoder (13 gates): one-hot, S in {0..6}; sh6=u11 (S<=6 guarantees s0=0 when u11=1)
     ns0 = NOT(s0);  ns1 = NOT(s1);  ns2 = NOT(s2)
 
     u00 = AND(ns2, ns1);  u01 = AND(ns2, s1)
@@ -98,7 +111,7 @@ def write_your_multiplier_here(a0, a1, a2, a3, b0, b1, b2, b3,
     sh2 = AND(u01, ns0);  sh3 = AND(u01, s0)
     sh4 = AND(u10, ns0);  sh5 = AND(u10, s0)
 
-    # AND-terms: K × sh_j
+    # AND-terms (18 gates): K x sh_j
     nmc0 = AND(nmc, sh0);  nmc1 = AND(nmc, sh1);  nmc2 = AND(nmc, sh2)
     nmc3 = AND(nmc, sh3);  nmc4 = AND(nmc, sh4);  nmc5 = AND(nmc, sh5)
     nmc6 = AND(nmc, u11)
@@ -109,7 +122,7 @@ def write_your_multiplier_here(a0, a1, a2, a3, b0, b1, b2, b3,
     k9_2 = AND(k9, sh2);  k9_3 = AND(k9, sh3);  k9_4 = AND(k9, sh4)
     k9_5 = AND(k9, sh5);  k9_6 = AND(k9, u11)
 
-    # Magnitude bits: m_i = nmc_i OR k3_{i+1} OR k9_{i-1} OR k9_{i+2}
+    # Magnitude bits (15 gates): m_i = nmc_i OR k3_{i+1} OR k9_{i-1} OR k9_{i+2}
     m7 = k9_6
     m6 = OR(nmc6, k9_5)
     m5 = OR(nmc5, OR(k3_6, k9_4))
@@ -119,17 +132,27 @@ def write_your_multiplier_here(a0, a1, a2, a3, b0, b1, b2, b3,
     m1 = OR(nmc1, OR(k3_2, k9_3))
     m0 = OR(nmc0, OR(k3_1, k9_2))
 
-    # Conditional 2's complement negation (LSB pass-through: r8=m0 always)
-    t0 = XOR(m0, sign);  r8 = m0;            c1 = AND(t0, sign)
-    t1 = XOR(m1, sign);  r7 = XOR(t1, c1);  c2 = AND(t1, c1)
-    t2 = XOR(m2, sign);  r6 = XOR(t2, c2);  c3 = AND(t2, c2)
-    t3 = XOR(m3, sign);  r5 = XOR(t3, c3);  c4 = AND(t3, c3)
-    t4 = XOR(m4, sign);  r4 = XOR(t4, c4);  c5 = AND(t4, c4)
-    t5 = XOR(m5, sign);  r3 = XOR(t5, c5);  c6 = AND(t5, c5)
-    t6 = XOR(m6, sign);  r2 = XOR(t6, c6);  c7 = AND(t6, c6)
-    t7 = XOR(m7, sign);  r1 = XOR(t7, c7)
+    # Conditional 2's complement negation via prefix-OR formula (20 gates):
+    # result_i = XOR(m_i, AND(sign, prefix_or_i))
+    # where prefix_or_i = OR(m_0, ..., m_{i-1})
+    # LSB r8 = m0 (passthrough: prefix_or_0 is empty = 0, no gate needed).
+    #
+    # Prefix-OR chain (6 gates):
+    p2 = OR(m0, m1);   p3 = OR(p2, m2);   p4 = OR(p3, m3)
+    p5 = OR(p4, m4);   p6 = OR(p5, m5);   p7 = OR(p6, m6)
 
-    # Sign masking (magnitude auto-zeros via K-masking; only sign bit needs mask)
+    # AND with sign (7 gates):
+    sp1 = AND(sign, m0)   # prefix_or_1 = m0, no extra OR needed
+    sp2 = AND(sign, p2);  sp3 = AND(sign, p3);  sp4 = AND(sign, p4)
+    sp5 = AND(sign, p5);  sp6 = AND(sign, p6);  sp7 = AND(sign, p7)
+
+    # XOR with magnitude (7 gates) + LSB passthrough:
+    r8 = m0
+    r7 = XOR(m1, sp1);  r6 = XOR(m2, sp2);  r5 = XOR(m3, sp3)
+    r4 = XOR(m4, sp4);  r3 = XOR(m5, sp5);  r2 = XOR(m6, sp6)
+    r1 = XOR(m7, sp7)
+
+    # Sign masking (1 gate): magnitude auto-zeros via K-masking; only sign bit needs mask
     res0 = AND(sign, nz)
 
     return res0, r1, r2, r3, r4, r5, r6, r7, r8

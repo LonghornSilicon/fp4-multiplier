@@ -172,9 +172,19 @@ This eliminates 3 AND-terms (k9_0, k9_1, k3_0), reducing from 21 to **18 AND-ter
 - Therefore sh6 = AND(u11, ns0) = u11 (the AND with ns0 is redundant)
 - **Saves 1 gate** in the S decoder (14→13 gates)
 
+### v4b → v4c: Prefix-OR conditional negation (88→86 gates, −2)
+- **Key insight**: For 2's complement negation, carry_i = 1 iff all lower bits are 0 = NOT(OR(m_0,...,m_{i-1}))
+- Therefore: `result_i = XOR(m_i, AND(sign, prefix_or_i))` where `prefix_or_i = OR(m_0,...,m_{i-1})`
+- This replaces the carry chain (22 gates: 8 XOR + 7 XOR + 7 AND) with:
+  - 6 OR gates for prefix chain: p2=OR(m0,m1), p3=OR(p2,m2), ..., p7=OR(p6,m6)
+  - 7 AND gates: sp1=AND(sign,m0), sp2=AND(sign,p2), ..., sp7=AND(sign,p7)
+  - 7 XOR gates: r_i = XOR(m_i, sp_i), plus r8=m0 passthrough
+- Total: 6+7+7 = **20 gates** (down from 22), saving 2 gates
+- Correctness: prefix_or_0 is empty (=0), so r8=XOR(m0,0)=m0 (free); for sign=0 all sp_i=0 so r_i=m_i (magnitude pass-through); for sign=1 r_i = XOR(m_i, OR(m_0..m_{i-1})) which is exactly 2's complement negation
+
 ---
 
-## Final Gate Count: 88
+## Final Gate Count: 86
 
 | Stage | Gates | Notes |
 |:---|:---:|:---|
@@ -186,9 +196,9 @@ This eliminates 3 AND-terms (k9_0, k9_1, k3_0), reducing from 21 to **18 AND-ter
 | S decoder | 13 | 3 NOT + 4 pair-AND + 6 sh (sh6=u11) |
 | AND-terms | 18 | 7 nmc + 6 k3 + 5 k9 terms |
 | Magnitude OR | 15 | OR assembly for m0..m7 |
-| Conditional negation | 22 | Carry chain (r8=m0 pass-through) |
+| Conditional negation | 20 | Prefix-OR formula: 6 OR + 7 AND + 7 XOR (r8=m0 free) |
 | Sign mask | 1 | AND(sign, nz) |
-| **Total** | **88** | |
+| **Total** | **86** | |
 
 ---
 
@@ -226,7 +236,7 @@ Each stage appears near-optimal:
 - **S decoder** (13 gates): Near-optimal 3→7 one-hot with sharing; sh6=u11 eliminates 1 redundant AND
 - **AND-terms** (18 gates): 7+6+5, determined by number of valid K×S combinations
 - **Magnitude OR** (15 gates): Optimal binary OR tree given 0+1+2+3+3+2+2+2 terms per bit
-- **Cond neg** (22 gates): Standard carry chain; r8=m0 saves 1 gate; further reduction requires input-dependent carry termination (impossible in combinational logic)
+- **Cond neg** (20 gates): Prefix-OR formula; r8=m0 free; 6+7+7 structure; further reduction would require sharing sp_i gates with other stages (no shared operands exist)
 - **Sign mask** (1 gate): Minimum for gating sign with nz
 
 **Estimated lower bound**: ~75–85 gates (based on per-stage minimums; achieving this would require cross-stage sharing not visible in this structural decomposition).
