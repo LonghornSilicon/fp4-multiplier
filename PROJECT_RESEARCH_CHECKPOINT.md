@@ -28,6 +28,26 @@ The emerging hypothesis is:
 
 ## Directions explored (and results)
 
+## New tooling added (2026-04-28)
+
+### Encoding search harness (full 16→16 bijection)
+
+- **Artifact**: `experiments/exp_encoding_search.py`
+- **What it does**: randomly samples / random-walks over full 16! encodings (not just 8! magnitude perms) and ranks them by **XOR-aware ANF heuristics** (term counts + cross-output monomial sharing).
+- **Smoke test**: runs successfully under WSL; produces top candidate remaps and scores.
+
+### XOR-aware global SAT synthesis (CEGIS)
+
+- **Artifact**: `autoresearch/sat_global_synth.py`
+- **What it does**: attempts to synthesize the full 8→9 function directly in the {NOT,AND,OR,XOR} basis using a **counterexample-guided SAT loop**, with a tunable “fanin window” to keep SAT size bounded.
+- **Status**: implemented + runnable; early trials show the first SAT solve can still be expensive at ~75 gates (expected), so this is a *research tool* rather than a guaranteed optimizer.
+
+### Staged evolutionary scaffold (template-based)
+
+- **Artifact**: `autoresearch/evo_template_search.py`
+- **What it does**: evolutionary search with **bitwise Hamming-loss fitness** and staged pattern sets; supports arbitrary `--remap16` encodings.
+- **Status**: implemented + smoke-tested (improves stage-0 loss quickly but did not reach correctness in a short run).
+
 ### 1) Log-domain approach
 
 - **Status**: **Not promising**.

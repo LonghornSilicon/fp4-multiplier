@@ -13,8 +13,14 @@ Note: Python short-circuit evaluation in 'and'/'or' doesn't apply here since
 we use function calls. This gives an honest gate count.
 """
 
-import numpy as np
 from typing import Callable, Dict, Any
+
+try:
+    import numpy as np
+    HAS_NUMPY = True
+except ImportError:
+    np = None
+    HAS_NUMPY = False
 
 try:
     import ml_dtypes
@@ -110,6 +116,8 @@ def evaluate(multiplier_fn: Callable, input_remap: Dict = None,
     """
     if not HAS_MLDTYPES:
         raise RuntimeError("ml_dtypes required for evaluation")
+    if not HAS_NUMPY:
+        raise RuntimeError("numpy required for ml_dtypes-based evaluation; use evaluate_fast() instead")
 
     if input_remap is None:
         global DEFAULT_REMAP
