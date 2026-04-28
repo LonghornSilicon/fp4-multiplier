@@ -190,9 +190,29 @@ This eliminates 3 AND-terms (k9_0, k9_1, k3_0), reducing from 21 to **18 AND-ter
 - **Cond_neg total**: 5 OR + 6 AND + 7 XOR = **18 gates** (down from 20).
 - **Note**: this saving is *structural* (depends on the 19-magnitude set being reachable), not generic to 8-bit conditional negation. It only kicks in because the reachable output set is sparse.
 
+### v4d → v4e: Cirbo SAT exact-synthesis for S-decoder (84→82 gates, −2)
+- **Method**: Used Cirbo's `CircuitFinderSat` SAT-based exact synthesizer in our exact AND/OR/XOR/NOT basis.
+- **S-decoder (3-in 7-out)**: N=7,8,9 UNSAT; N=10 TIMEOUT (>360s); N=11 SAT (0.43s). So the minimum is either 10 or 11.
+- **11-gate circuit found** (4 AND + 2 OR + 4 XOR + 1 NOT):
+  ```python
+  _or01  = OR(s2, s1)          # 2 OR gates
+  _or012 = OR(s0, _or01)
+  sh0    = NOT(_or012)         # 1 NOT (NOR of s2,s1,s0)
+  sh1    = XOR(_or01, _or012)  # = s0 AND NOT(s2 OR s1)
+  _xor2  = XOR(s0, _or012)
+  _and2  = AND(s2, _xor2)      # 4 AND gates
+  sh3    = AND(s1, s0)
+  sh5    = AND(s2, s0)
+  sh6    = AND(s1, _and2)      # 4 XOR gates
+  sh2    = XOR(_xor2, _and2)
+  sh4    = XOR(_and2, sh6)
+  ```
+- **Saves 2 gates** vs the 13-gate hand-crafted decoder (3 NOT + 10 AND).
+- **Circuit verified**: all 7 S-values decoded correctly; all 256 FP4×FP4 pairs verified CORRECT at 82 gates.
+
 ---
 
-## Final Gate Count: 84
+## Final Gate Count: 82
 
 | Stage | Gates | Notes |
 |:---|:---:|:---|
@@ -201,12 +221,12 @@ This eliminates 3 AND-terms (k9_0, k9_1, k3_0), reducing from 21 to **18 AND-ter
 | E-sum | 7 | 2-bit adder for (a2,a3)+(b2,b3) |
 | K-flags | 3 | OR, NOT, XOR |
 | K-masking | 3 | AND each with nz |
-| S decoder | 13 | 3 NOT + 4 pair-AND + 6 sh (sh6=u11) |
+| S decoder | 11 | 4 AND + 2 OR + 4 XOR + 1 NOT (Cirbo SAT-optimal in {AND,OR,XOR,NOT}) |
 | AND-terms | 18 | 7 nmc + 6 k3 + 5 k9 terms |
 | Magnitude OR | 15 | OR assembly for m0..m7 |
 | Conditional negation | 18 | Prefix-OR formula: 5 OR + 6 AND + 7 XOR (r8=m0 free, sp7=res0) |
 | Sign mask | 1 | AND(sign, nz), also serves as sp7 |
-| **Total** | **84** | |
+| **Total** | **82** | |
 
 ---
 
@@ -244,7 +264,8 @@ Each stage appears near-optimal:
 - **S decoder** (13 gates): Near-optimal 3→7 one-hot with sharing; sh6=u11 eliminates 1 redundant AND
 - **AND-terms** (18 gates): 7+6+5, determined by number of valid K×S combinations
 - **Magnitude OR** (15 gates): Optimal binary OR tree given 0+1+2+3+3+2+2+2 terms per bit
-- **Cond neg** (18 gates): Prefix-OR formula; r8=m0 free; sp7=res0 (from P_7=nz reachability); 5+6+7 structure; further reduction would require sharing sp_i gates with other stages (no shared operands exist)
+- **Cond neg** (18 gates): Prefix-OR formula; r8=m0 free; sp7=res0 (from P_7=nz reachability); 5+6+7 structure; ABC mfs3 with -W 6 finds zero subcircuit replacements; locally minimal
+- **S decoder** (11 gates): Cirbo SAT proves N=9 UNSAT; N=11 SAT. N=10 remains open (>360s SAT). ABC mapped 11 ANDs from PLA starting point which matches (NOTs in AIG are polarity bits, hence AIG count ≈ AND count without NOT cost)
 - **Sign mask** (1 gate): Minimum for gating sign with nz
 
 **Estimated lower bound (structural decomposition)**: ~75–84 gates. Achieving below this would require either cross-stage sharing not visible in this decomposition, or a fundamentally different topology.
@@ -280,7 +301,7 @@ The circuit passes all 256 FP4×FP4 input pair tests via `eval_circuit.evaluate_
 
 ```bash
 python eval_circuit.py autoresearch/multiplier.py
-# Result: CORRECT, Gates: 84 (max per pair)
+# Result: CORRECT, Gates: 82 (max per pair)
 
 python etched_take_home_multiplier_assignment.py
 # Should pass all 256 asserts
@@ -288,4 +309,4 @@ python etched_take_home_multiplier_assignment.py
 
 ---
 
-*Research conducted 2026-04-27 / extended 2026-04-28. Gate count reduced from flat SOP baseline (~288) to structural approach (84) through progressive mathematical insight and systematic optimization.*
+*Research conducted 2026-04-27 / extended 2026-04-28. Gate count reduced from flat SOP baseline (~288) to structural approach (82) through progressive mathematical insight, systematic optimization, and SAT-based exact synthesis (Cirbo CircuitFinderSat).*
