@@ -271,6 +271,26 @@ def synth_attempts(path):
     )
     attempts.append(("&deepsyn-30s", sc6))
 
+    # Attempt 7: longer deepsyn with extra polishing
+    sc7 = (
+        f"{rd}; strash; "
+        "&get; &deepsyn -T 90; &put; "
+        "compress2rs; resyn2; resyn2rs; compress2rs; "
+        "&get; &deepsyn -T 30; &put; "
+        "print_stats; if -K 2; print_stats;"
+    )
+    attempts.append(("&deepsyn-90s+polish+30s", sc7))
+
+    # Attempt 8: BDD-aware via collapse + multi-layer rewriting
+    sc8 = (
+        f"{rd}; collapse; strash; "
+        "rewrite -z; refactor -z; rewrite -z; resub; "
+        "compress2rs; compress2rs; "
+        "&get; &dch -f; &syn3; &dc2; &put; "
+        "print_stats; if -K 2; print_stats;"
+    )
+    attempts.append(("collapse+rewrite-z+&dch+&syn3", sc8))
+
     results = []
     for label, script in attempts:
         out = run_abc(script)
@@ -374,7 +394,9 @@ def main():
     print("\n=== Alternative: one-hot output encoding ===")
     oh_pla, k = alternative_onehot_encoding(rows)
     print(f"  one-hot width: {k}, file: {oh_pla}")
-    oh_results = synth_attempts(oh_pla)
+    oh_pla_tmp = "/tmp/ds_onehot.pla"
+    shutil.copy(oh_pla, oh_pla_tmp)
+    oh_results = synth_attempts(oh_pla_tmp)
     for r in oh_results:
         print(f"  [{r['label']:36s}]  best_AIG_and={r['min_and']}  "
               f"best_LUT2_nd={r['min_nd']}")
