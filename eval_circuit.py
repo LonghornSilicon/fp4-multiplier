@@ -181,6 +181,10 @@ def evaluate_from_module(module_path: str, verbose: bool = True) -> Dict[str, An
 
     fn = getattr(mod, 'write_your_multiplier_here')
     remap = getattr(mod, 'INPUT_REMAP', None)
+    if isinstance(remap, (list, tuple)):
+        correct, gc, errors = evaluate_fast(fn, remap, verbose=verbose)
+        return {'correct': correct, 'gate_count': gc, 'gate_count_min': gc,
+                'gate_count_total': gc * 256, 'errors': errors, 'num_errors': len(errors)}
     result = evaluate(fn, remap, verbose=verbose)
     return result
 

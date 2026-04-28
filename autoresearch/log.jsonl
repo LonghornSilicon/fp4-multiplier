@@ -1,0 +1,5 @@
+{"approach": "v1_canonical_ME", "correct": true, "gate_count": 135, "notes": "Canonical M-E encoding (zero=100), sign+magnitude+cond_neg, no sharing"}
+{"approach": "v2_shared_kshift", "correct": true, "gate_count": 126, "notes": "Shared K×shift precomputation, still uses subtractor for E adjustment"}
+{"approach": "v3_direct_formula", "correct": true, "gate_count": 101, "notes": "Direct formula m_i = nmc×sh_i | k3×sh_{i+1} | k9×sh_{i+2} | k9×sh_{i-1}. No subtractor. Zero=100 encoding, 9-bit zero masking."}
+{"approach": "v4_zero000_kflag_mask", "correct": true, "gate_count": 89, "notes": "Zero=000 encoding. K-flag masking with nz (3 gates) vs 9-bit output masking (10 gates). nz detect costs 5 gates (vs 9). r8=m0 pass-through saves 1 cond_neg gate."}
+{"approach": "v4b_zero000_sh6_opt", "correct": true, "gate_count": 88, "notes": "Same as v4 + sh6=u11 optimization: since max S=6=3+3, u11=AND(s2,s1)=1 forces s0=0, so sh6=u11 saves 1 AND gate."}

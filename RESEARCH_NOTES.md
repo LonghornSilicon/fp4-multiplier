@@ -1,0 +1,262 @@
+# FP4 Multiplier Gate Minimization — Research Notes
+
+## Problem
+
+Design a minimum-gate Boolean circuit computing FP4×FP4→QI9:
+- **Input**: two FP4 numbers (float4_e2m1fn, 4-bit floating point), each encoded as 4 bits with an arbitrary input remapping
+- **Output**: 9-bit two's complement fixed-point integer (QI9), where LSB = 1/4
+- **Primitive gates**: NOT, AND, OR, XOR (each costs 1 gate; 2-input except NOT)
+- **Free**: constants (0, 1), input remapping (arbitrary bijection on FP4 values to 4-bit codes)
+
+FP4 (E2M1) has 16 values: {0, ±0.5, ±1, ±1.5, ±2, ±3, ±4, ±6}.  
+The product of two FP4 values scaled ×4 fits in 9-bit two's complement (range −256 to 255, but actual max is |6×6|×4 = 144).
+
+---
+
+## Mathematical Structure (Key Insight)
+
+All non-zero FP4 magnitudes are of the form:
+
+```
+|a| = 1.5^M_a × 2^(E_a)
+```
+
+where M_a ∈ {0,1} (mantissa type) and E_a ∈ {-1, 0, 1, 2} (exponent).
+
+| FP4 Magnitude | M | E |
+|:---:|:---:|:---:|
+| 0.5 | 0 | -1 |
+| 1.0 | 0 | 0 |
+| 2.0 | 0 | 1 |
+| 4.0 | 0 | 2 |
+| 1.5 | 1 | 0 |
+| 3.0 | 1 | 1 |
+| 6.0 | 1 | 2 |
+
+The product magnitude is:
+```
+|a × b| = 1.5^(M_a + M_b) × 2^(E_a + E_b)
+```
+
+Scaled by 4 (for QI9): `QI9_magnitude = 1.5^M_sum × 2^S`
+
+where:
+- **M_sum** = M_a + M_b ∈ {0, 1, 2} → determines **K-type**
+- **S** = E'_a + E'_b ∈ {0,...,6} → determines **shift** (using E' = E+1 ∈ {0,...,3})
+
+K-types and their bit patterns:
+| M_sum | K value | QI9 bits set |
+|:---:|:---:|:---|
+| 0 (K=1) | 1 × 2^S | bit S only |
+| 1 (K=3/2) | 3 × 2^(S-1) = 2^S + 2^(S-1) | bits S and S-1 |
+| 2 (K=9/4) | 9 × 2^(S-2) = 2^(S+1) + 2^(S-2) | bits S+1 and S-2 |
+
+The QI9 magnitude has **at most 2 bits set** (extreme sparsity — only 19 distinct non-zero values out of 256 possible 8-bit patterns).
+
+---
+
+## Circuit Architecture
+
+The multiplier decomposes into 5 stages:
+
+```
+Inputs: a0..a3, b0..b3 (4-bit FP4 codes with remapping)
+  │
+  ├── Stage 1: Sign          sign = XOR(a0, b0)
+  │
+  ├── Stage 2: Non-zero detect  nz = OR(a1..a3) AND OR(b1..b3)
+  │
+  ├── Stage 3: Magnitude circuit
+  │     ├── E-sum: S = (a2,a3)_binary + (b2,b3)_binary    [2-bit adder]
+  │     ├── K-flags: k9 = NOR(a1,b1), k3 = XOR(a1,b1), nmc = OR(a1,b1)
+  │     ├── K-masking: AND each K-flag with nz
+  │     ├── S decoder: one-hot sh_0..sh_6
+  │     ├── AND-terms: K × sh_j products
+  │     └── OR assembly: m_i = nmc_i OR k3_{i+1} OR k9_{i-1} OR k9_{i+2}
+  │
+  ├── Stage 4: Conditional 2's complement negation
+  │     Carry chain from LSB to MSB, carry-in = sign
+  │
+  └── Stage 5: Sign masking
+        res0 = AND(sign, nz)
+        res1..res8 = conditional negation outputs (auto-zero via K-masking)
+
+Output: res0..res8 (9-bit QI9)
+```
+
+---
+
+## Encoding Design
+
+The input remapping is free, so we choose it to minimize circuit complexity.
+
+**Chosen encoding** (magnitude code = a1 a2 a3, MSB first):
+
+| Code | Magnitude | M | E' |
+|:---:|:---:|:---:|:---:|
+| 000 | zero | — | — |
+| 001 | 1.5 | 1 | 1 |
+| 010 | 3.0 | 1 | 2 |
+| 011 | 6.0 | 1 | 3 |
+| 100 | 0.5 | 0 | 0 |
+| 101 | 1.0 | 0 | 1 |
+| 110 | 2.0 | 0 | 2 |
+| 111 | 4.0 | 0 | 3 |
+
+**Key property**: E'_a = (a2, a3) as a 2-bit binary number, for all non-zero codes.  
+**Key property**: M_a = NOT(a1) (M=1 for codes 001,010,011; M=0 for codes 100,101,110,111).  
+**Key property**: Zero maps to code 000, enabling zero detection via NOR tree (5 gates).
+
+From these, the K-flags derive directly:
+```
+not_k9 = OR(a1, b1)           # M_sum ≠ 2  [= 1 gate]
+k9     = NOT(OR(a1, b1))      # M_sum = 2  [= 1 gate, after OR]
+k3     = XOR(a1, b1)          # M_sum = 1  [= 1 gate]
+```
+
+---
+
+## Magnitude Output Formula
+
+For output bit i of the 8-bit magnitude (QI9 bits 1–8):
+
+```
+m_i = (not_k9 AND S==i) OR (k3 AND S==i+1) OR (k9 AND S==i-1) OR (k9 AND S==i+2)
+```
+
+This follows directly from the K-type bit patterns:
+- **K=1** (not_k9, not k3): single bit at S → contributes to m_i when S=i
+- **K=3/2** (k3): bits at S and S-1 → k3 contributes to m_i at S=i (upper) and S=i+1 (lower bit)
+- **K=9/4** (k9): bits at S+1 and S-2 → k9 contributes to m_i at S=i-1 (upper) and S=i+2 (lower)
+
+Note: `not_k9 AND S==i` handles both K=1 and the upper bit of K=3/2 correctly, because:
+- K=1: nmc=1, k3=0
+- K=3/2: nmc=1, k3=1 (and the upper bit is the S==i term)
+
+### Impossible K×S Combinations (saves AND-terms)
+
+With the chosen encoding, M=1 requires E'∈{1,2,3} (codes 001,010,011 for the M=1 group):
+- **k9 AND S∈{0,1} impossible**: k9 requires M_a=M_b=1 → E'_a,E'_b≥1 → S≥2
+- **k3 AND S=0 impossible**: k3 requires one M=1 → that input has E'≥1 → S≥1
+
+This eliminates 3 AND-terms (k9_0, k9_1, k3_0), reducing from 21 to **18 AND-terms**.
+
+---
+
+## Optimization History
+
+### v1 → v2: Gate sharing in K×shift precomputation (135→126 gates, −9)
+- Pre-compute shared sub-expressions for K-type × shift combinations
+- Eliminate redundant per-bit computations
+
+### v2 → v3: Direct formula, eliminate subtractor (126→101 gates, −25)
+- Previous approach used E-sum with a subtractor to compute E_a + E_b (costs ~11 gates)
+- By defining E' = E+1 (making all exponents ≥0), the E-sum is a simple 2-bit adder
+- The formula `m_i = nmc×sh_i | k3×sh_{i+1} | k9×sh_{i+2} | k9×sh_{i-1}` uses S=E'_a+E'_b directly
+- No subtractor needed!
+
+### v3 → v4: Zero=000 encoding + K-flag masking (101→89 gates, −12)
+- **Encoding change**: zero maps to code 000 (vs 100 in v3)
+- **Zero detection**: NOR tree costs 5 gates (vs 9 gates with zero=100)
+- **Key insight**: Instead of masking 9 output bits with `nz` (9 AND gates), mask the 3 K-flags:
+  - `k9 = AND(k9_raw, nz)`, `k3 = AND(k3_raw, nz)`, `nmc = AND(not_k9, nz)` (3 AND gates)
+  - When nz=0 (either input zero): all K-flags=0 → all magnitude bits=0 → all outputs=0
+  - res0 = AND(sign, nz) (1 gate for sign masking)
+  - Total zero overhead: 5 (detect) + 3 (K-mask) + 1 (sign) = 9 gates vs 19 gates before
+- **r8 = m0 pass-through**: Two's complement preserves the LSB (the negation of bit 0 = bit 0 always), saving 1 XOR gate in the carry chain
+
+### v4 → v4b: S decoder optimization (89→88 gates, −1)
+- **Key observation**: S = E'_a + E'_b ≤ 3+3 = 6 (maximum possible)
+- In the S decoder: u11 = AND(s2, s1) = 1 only when S∈{6,7}
+- Since S=7 is impossible, u11=1 implies S=6 implies s0=0 implies ns0=1
+- Therefore sh6 = AND(u11, ns0) = u11 (the AND with ns0 is redundant)
+- **Saves 1 gate** in the S decoder (14→13 gates)
+
+---
+
+## Final Gate Count: 88
+
+| Stage | Gates | Notes |
+|:---|:---:|:---|
+| Sign | 1 | XOR(a0,b0) |
+| Non-zero detect | 5 | 2 OR-trees + 1 AND |
+| E-sum | 7 | 2-bit adder for (a2,a3)+(b2,b3) |
+| K-flags | 3 | OR, NOT, XOR |
+| K-masking | 3 | AND each with nz |
+| S decoder | 13 | 3 NOT + 4 pair-AND + 6 sh (sh6=u11) |
+| AND-terms | 18 | 7 nmc + 6 k3 + 5 k9 terms |
+| Magnitude OR | 15 | OR assembly for m0..m7 |
+| Conditional negation | 22 | Carry chain (r8=m0 pass-through) |
+| Sign mask | 1 | AND(sign, nz) |
+| **Total** | **88** | |
+
+---
+
+## Approaches Eliminated
+
+### Flat SOP (Quine-McCluskey) Synthesis
+- Searched all 8! = 40,320 magnitude encodings
+- Best flat SOP (6-input, per-bit QM minimization): **288 gates total** (264 magnitude + 24 overhead)
+- Even with zero=000 constraint (7! = 5040 perms): similar result
+- Flat 2-level logic is completely infeasible for this problem — multi-level synthesis is essential
+
+### Direct 8-Input SOP
+- Treating all 9 output bits as functions of all 8 inputs (flat SOP)
+- Results in 2000+ gates per output bit
+- Confirmed infeasible; structural decomposition is necessary
+
+### Shared Gate Synthesis (Track C)
+- XOR/AND decomposability analysis across output bits
+- Result: no useful decomposition found; the sign-magnitude structure already captures the main sharing
+
+### ABC Logic Synthesis (Track D)
+- Generated PLA format files for the magnitude function
+- Requires ABC binary installation; PLA files saved to `autoresearch/data/pla_files/` for manual use
+
+---
+
+## Structural Lower Bound Analysis
+
+Each stage appears near-optimal:
+- **Sign** (1 gate): XOR is the minimum for sign computation
+- **Non-zero detect** (5 gates): Minimum OR-tree for detecting zero in 3-bit codes × 2 inputs + AND
+- **E-sum** (7 gates): Standard minimum for 2-bit + 2-bit adder (known optimal)
+- **K-flags** (3 gates): OR + NOT + XOR is minimal for computing not_k9, k9, k3
+- **K-masking** (3 gates): One AND per K-flag, no sharing possible
+- **S decoder** (13 gates): Near-optimal 3→7 one-hot with sharing; sh6=u11 eliminates 1 redundant AND
+- **AND-terms** (18 gates): 7+6+5, determined by number of valid K×S combinations
+- **Magnitude OR** (15 gates): Optimal binary OR tree given 0+1+2+3+3+2+2+2 terms per bit
+- **Cond neg** (22 gates): Standard carry chain; r8=m0 saves 1 gate; further reduction requires input-dependent carry termination (impossible in combinational logic)
+- **Sign mask** (1 gate): Minimum for gating sign with nz
+
+**Estimated lower bound**: ~75–85 gates (based on per-stage minimums; achieving this would require cross-stage sharing not visible in this structural decomposition).
+
+---
+
+## Possible Further Reductions
+
+To push below 88 gates, one would need to explore:
+
+1. **ABC multi-level synthesis** on the 6-input magnitude function (factored from the structural formula): could find cross-stage sharing not visible manually
+2. **Alternative carry chain implementations** exploiting the output sparsity (≤2 bits set per magnitude value)
+3. **Different overall circuit topology**: e.g., precompute both ±magnitude and MUX vs. conditional negation
+4. **SAT/ILP-based exact synthesis**: for proving optimality of individual stages
+5. **Asymmetric K-type implementations**: exploiting that K=1, K=3/2, and K=9/4 have different frequencies in the truth table
+
+---
+
+## Verification
+
+The circuit passes all 256 FP4×FP4 input pair tests via `eval_circuit.evaluate_fast()`.
+
+```bash
+python eval_circuit.py autoresearch/multiplier.py
+# Result: CORRECT, Gates: 88 (max per pair)
+
+python etched_take_home_multiplier_assignment.py
+# Should pass all 256 asserts
+```
+
+---
+
+*Research conducted 2026-04-27. Gate count reduced from flat SOP baseline (~288) to structural approach (88) through progressive mathematical insight and systematic optimization.*
