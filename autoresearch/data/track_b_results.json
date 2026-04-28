@@ -1,0 +1,11 @@
+{
+  "v1": {
+    "correct": true,
+    "gate_count": 135
+  },
+  "v2": {
+    "correct": true,
+    "gate_count": 126
+  },
+  "best": 126
+}
