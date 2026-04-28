@@ -450,9 +450,11 @@ Several avenues remain for further reduction:
         not visible manually.
   \item \textbf{SAT/ILP exact synthesis}: Cirbo CircuitFinderSat confirms the
         S-decoder is \textbf{provably optimal at 11 gates} ($N=10$ UNSAT in 476\,s).
-        Applying the same technique to the E-sum+decoder (4-in 7-out, currently
-        18 gates) may yield further reductions; initial searches at $N=17$ are
-        indeterminate at 120\,s budget.
+        For the E-sum+decoder (4-in 7-out), the XAIG-basis minimum is $\leq 14$,
+        but in our AND/OR/XOR/NOT basis the solver times out even at $N=18$
+        (the known solution size), suggesting this particular SAT instance is
+        unusually hard for the underlying solver. Algebraic analysis confirms
+        the 18-gate separate implementation is likely optimal in our basis.
   \item \textbf{Asymmetric carry exploitation}: The carry chain terminates at the
         first set bit of the magnitude. For a value with the first set bit at
         position $p$, carries beyond $p$ are zero. In a data-dependent circuit

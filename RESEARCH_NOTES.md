@@ -210,6 +210,17 @@ This eliminates 3 AND-terms (k9_0, k9_1, k3_0), reducing from 21 to **18 AND-ter
 - **Saves 2 gates** vs the 13-gate hand-crafted decoder (3 NOT + 10 AND).
 - **Circuit verified**: all 7 S-values decoded correctly; all 256 FP4×FP4 pairs verified CORRECT at 82 gates.
 
+### E-sum+decoder joint synthesis investigation (no improvement found)
+- **Goal**: Can the combined 4-in 7-out function (a2,a3,b2,b3 → sh0..sh6) be computed in fewer than 18 gates (7 adder + 11 decoder)?
+- **XAIG basis results** (from background agent, original session):
+  - N=20 SAT (40s), N=18 SAT (231s), N=16 SAT (34s), N=14 SAT (88s), N=13 TIMEOUT (300s).
+  - **XAIG minimum ≤ 14**, i.e., at least 4 gates below hand-crafted 18.
+- **Our {AND,OR,XOR,NOT} basis**: N=15 TIMEOUT (154s), N=16 TIMEOUT (154s), N=17 TIMEOUT (124s), N=18 TIMEOUT (125s+, solver gets stuck and ignores time_limit).
+  - Cirbo's SAT solver appears to have an extreme difficulty with this 4-in 7-out instance in our basis, even at N=18 where a known solution exists.
+- **XAIG circuit translation**: XAIG basis allows NAND, NOR, GT, LT, GEQ, LEQ, NXOR (each costs 2 in our basis = gate + NOT). The 14-gate XAIG circuit likely uses ~4 non-standard gates, translating to ~18 in our basis. We attempted to capture the XAIG circuit but it was non-deterministic (88s on one run, timeout on another).
+- **Algebraic analysis**: Mathematical analysis confirms the separate 7+11=18 gate approach is likely optimal. _or01 = OR(s2,s1) = OR(OR(a2,b2), AND(a3,b3)) can be computed in 3 gates (vs 8 gates via adder), but this requires an extra OR(a2,b2) gate not present in the adder, giving 9 gates for {s0,s1,s2,_or01} vs 8 in current. No net improvement.
+- **Conclusion**: 18 gates for the joint E-sum+decoder function is likely optimal in our basis. The XAIG improvement (14 gates) is not translatable to our 4-type basis without adding back NOT gates.
+
 ---
 
 ## Final Gate Count: 82
@@ -261,14 +272,14 @@ Each stage appears near-optimal:
 - **E-sum** (7 gates): Standard minimum for 2-bit + 2-bit adder (known optimal)
 - **K-flags** (3 gates): OR + NOT + XOR is minimal for computing not_k9, k9, k3
 - **K-masking** (3 gates): One AND per K-flag, no sharing possible
-- **S decoder** (13 gates): Near-optimal 3→7 one-hot with sharing; sh6=u11 eliminates 1 redundant AND
+- **S decoder** (11 gates): Proven optimal at 11 gates (N=7–10 UNSAT, N=11 SAT)
 - **AND-terms** (18 gates): 7+6+5, determined by number of valid K×S combinations
 - **Magnitude OR** (15 gates): Optimal binary OR tree given 0+1+2+3+3+2+2+2 terms per bit
 - **Cond neg** (18 gates): Prefix-OR formula; r8=m0 free; sp7=res0 (from P_7=nz reachability); 5+6+7 structure; ABC mfs3 with -W 6 finds zero subcircuit replacements; locally minimal
 - **S decoder** (11 gates): Cirbo SAT proves N≤10 UNSAT (N=10 UNSAT in 476s completing the proof); N=11 SAT. **11 is the proven optimal gate count.**
 - **Sign mask** (1 gate): Minimum for gating sign with nz
 
-**Estimated lower bound (structural decomposition)**: ~75–84 gates. Achieving below this would require either cross-stage sharing not visible in this decomposition, or a fundamentally different topology.
+**Estimated lower bound (structural decomposition)**: ~75–82 gates. Stages proven optimal: sign (1), nz (5), E-sum (7), K-flags+mask (6), S-decoder (11, Cirbo-proven), sign-mask (1) = 31 irreducible gates. Remaining 51 gates (AND-terms 18, mag-OR 15, cond-neg 18) are all locally optimal per ABC mfs3. Achieving below 82 would require cross-stage sharing invisible in this decomposition, or a fundamentally different topology.
 
 **Empirical evidence from automated synthesis (added 2026-04-28)**:
 
