@@ -192,7 +192,7 @@ This eliminates 3 AND-terms (k9_0, k9_1, k3_0), reducing from 21 to **18 AND-ter
 
 ### v4d → v4e: Cirbo SAT exact-synthesis for S-decoder (84→82 gates, −2)
 - **Method**: Used Cirbo's `CircuitFinderSat` SAT-based exact synthesizer in our exact AND/OR/XOR/NOT basis.
-- **S-decoder (3-in 7-out)**: N=7,8,9 UNSAT; N=10 TIMEOUT (>360s); N=11 SAT (0.43s). So the minimum is either 10 or 11.
+- **S-decoder (3-in 7-out)**: N=7,8,9 UNSAT (<6s each); N=10 **UNSAT (476s)**; N=11 SAT (0.43s). **11 gates is the proven optimum.**
 - **11-gate circuit found** (4 AND + 2 OR + 4 XOR + 1 NOT):
   ```python
   _or01  = OR(s2, s1)          # 2 OR gates
@@ -265,7 +265,7 @@ Each stage appears near-optimal:
 - **AND-terms** (18 gates): 7+6+5, determined by number of valid K×S combinations
 - **Magnitude OR** (15 gates): Optimal binary OR tree given 0+1+2+3+3+2+2+2 terms per bit
 - **Cond neg** (18 gates): Prefix-OR formula; r8=m0 free; sp7=res0 (from P_7=nz reachability); 5+6+7 structure; ABC mfs3 with -W 6 finds zero subcircuit replacements; locally minimal
-- **S decoder** (11 gates): Cirbo SAT proves N=9 UNSAT; N=11 SAT. N=10 remains open (>360s SAT). ABC mapped 11 ANDs from PLA starting point which matches (NOTs in AIG are polarity bits, hence AIG count ≈ AND count without NOT cost)
+- **S decoder** (11 gates): Cirbo SAT proves N≤10 UNSAT (N=10 UNSAT in 476s completing the proof); N=11 SAT. **11 is the proven optimal gate count.**
 - **Sign mask** (1 gate): Minimum for gating sign with nz
 
 **Estimated lower bound (structural decomposition)**: ~75–84 gates. Achieving below this would require either cross-stage sharing not visible in this decomposition, or a fundamentally different topology.

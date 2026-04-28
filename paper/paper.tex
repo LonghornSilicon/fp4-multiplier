@@ -246,9 +246,10 @@ The 3-bit binary $S \in \{0,\ldots,6\}$ is decoded to 7 one-hot signals
 $\text{sh}_0\ldots\text{sh}_6$.
 
 \textbf{Exact-synthesis result}: Using the Cirbo SAT-based exact synthesizer
-(CircuitFinderSat), we prove that $N=7,8,9$ gates are insufficient (UNSAT)
-and find a \textbf{11-gate} circuit at $N=11$ in our AND/OR/XOR/NOT basis
-($N=10$ is under investigation). The 11-gate circuit uses 4 AND + 2 OR + 4 XOR + 1 NOT:
+(CircuitFinderSat), we prove that $N \leq 10$ gates are insufficient (UNSAT: $N=7,8,9$
+in $<$6\,s each; $N=10$ UNSAT in 476\,s) and find a \textbf{11-gate} circuit at $N=11$
+in our AND/OR/XOR/NOT basis, confirming \textbf{11 is the provably optimal gate count}.
+The 11-gate circuit uses 4 AND + 2 OR + 4 XOR + 1 NOT:
 \begin{align*}
   p_1 &= s_2 \vee s_1, \quad p_2 = s_0 \vee p_1 \\
   \text{sh}_0 &= \overline{p_2} \\
@@ -402,9 +403,9 @@ We analyze the minimum achievable gate count per stage:
         producing a 3-bit result is known to be 7 gates~\cite{hurst1978truth}.
   \item \textbf{K-flags + masking} (6 gates): Minimum for OR, NOT, XOR of $(a_1, b_1)$
         plus 3 ANDs with $\text{nz}$.
-  \item \textbf{S decoder} (11 gates): Cirbo SAT exact synthesis proves 9 gates
-        insufficient (UNSAT); 11 gates achievable (SAT). This is provably optimal
-        down to $N=9$; $N=10$ remains open (SAT solver times out at 360s).
+  \item \textbf{S decoder} (11 gates): Cirbo SAT exact synthesis proves $N \leq 10$
+        insufficient ($N=7,8,9$ UNSAT in $<$6\,s; $N=10$ UNSAT in 476\,s);
+        $N=11$ SAT in 0.69\,s. \textbf{11 is the proven optimal gate count.}
   \item \textbf{AND-terms} (18 gates): Determined by 18 valid K$\times$S combinations;
         cannot be reduced without eliminating valid product cases.
   \item \textbf{Magnitude OR} (15 gates): Minimum binary OR trees for 0+1+2+3+3+2+2+2
@@ -416,7 +417,8 @@ We analyze the minimum achievable gate count per stage:
 \end{itemize}
 
 \textbf{Estimated lower bound}: 73--82 gates.
-The S-decoder is now proven optimal down to $N=10$ by exact synthesis.
+The S-decoder is now \textbf{proven optimal at 11 gates} by exact synthesis
+($N=10$ UNSAT in 476\,s, completing the proof).
 The main remaining uncertainty is whether joint multi-output exact synthesis
 on the magnitude (6-in 8-out) or E-sum+decoder (4-in 7-out) stages can expose
 cross-output sharing not available in single-output searches.
@@ -446,10 +448,11 @@ Several avenues remain for further reduction:
         synthesis with technology-independent optimization. Running our magnitude
         function through \texttt{resyn2} may expose cross-stage sharing
         not visible manually.
-  \item \textbf{SAT/ILP exact synthesis} (in progress): Cirbo CircuitFinderSat
-        confirmed the S-decoder optimal at 11 gates (N=10 remains open at 360s SAT
-        budget). Applying the same technique to the E-sum+decoder (4-in 7-out, 20
-        gates) and magnitude OR stage may yield further reductions.
+  \item \textbf{SAT/ILP exact synthesis}: Cirbo CircuitFinderSat confirms the
+        S-decoder is \textbf{provably optimal at 11 gates} ($N=10$ UNSAT in 476\,s).
+        Applying the same technique to the E-sum+decoder (4-in 7-out, currently
+        18 gates) may yield further reductions; initial searches at $N=17$ are
+        indeterminate at 120\,s budget.
   \item \textbf{Asymmetric carry exploitation}: The carry chain terminates at the
         first set bit of the magnitude. For a value with the first set bit at
         position $p$, carries beyond $p$ are zero. In a data-dependent circuit

@@ -104,7 +104,7 @@ def write_your_multiplier_here(a0, a1, a2, a3, b0, b1, b2, b3,
     k9  = AND(k9_raw,  nz)
 
     # S decoder (11 gates): one-hot, S in {0..6}.
-    # Cirbo SAT-exact synthesis proves 11 is optimal in AND/OR/XOR/NOT basis (8 UNSAT, 9-11 SAT).
+    # Proven optimal: N=7,8,9,10 UNSAT (N=10 in 476s); N=11 SAT (0.43s). All in AND/OR/XOR/NOT basis.
     # Circuit: 4 AND + 2 OR + 4 XOR + 1 NOT.
     _or01 = OR(s2, s1);   _or012 = OR(s0, _or01)
     sh0   = NOT(_or012)                              # sh0 = NOR(s2,s1,s0)
