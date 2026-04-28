@@ -3,3 +3,13 @@ __pycache__/
 *.pyo
 autoresearch/data/
 
+
+# LaTeX build artifacts
+paper/*.aux
+paper/*.log
+paper/*.out
+paper/*.toc
+paper/*.bbl
+paper/*.blg
+paper/*.synctex.gz
+
