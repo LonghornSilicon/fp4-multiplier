@@ -35,7 +35,18 @@ We hit a hard plateau at 81 gates on our independent line (gate-level SA, resub,
 
 **Single most important thing to do next**
 
-Install the toolchain (`sudo apt-get install -y yosys cmake build-essential; pip3 install --user pybind11 bitarray cirbo; clone+build eSLIM`), run G5 (verify yosys+ABC reproduces 74 gates from `fp4_mul.v`), then G6 (run eSLIM `--syn-mode sat --size 8` once on the unperturbed 64-gate netlist to calibrate). **Confirm with user before any multi-hour eSLIM campaign** — that's the Phase 3 Experiment A trigger.
+Run Experiment A: enumerate gate-neutral XOR re-associations on the canonical 64-gate BLIF, run eSLIM on each with multiple seeds, look for any variant that drops below 64 contest cells.
+
+**Updates after CONTEXT.md write-out (still 2026-04-28):**
+- Phase 1 install: pybind11, bitarray, cirbo via pip `--break-system-packages`. cmake via pip. eSLIM cloned + built (`/tmp/eSLIM/src/bindings/build/*.so`). All bindings import cleanly. **yosys / system-cmake skipped — eSLIM consumes BLIF directly, no yosys needed for the Experiment A path.**
+- G6 preemptive eSLIM run on canonical 64-gate flat BLIF: **eSLIM `--syn-mode sat --size 6` for 20s returns 58 internal gates → 64 contest cells (25 AND2 + 12 OR2 + 21 XOR2 + 6 NOT1)**. Confirms Longhorn's published saturation at the unperturbed 64-gate netlist. No immediate sub-64 hit.
+- Next concrete step: write `experiments/exp_a_xor_reassoc.py` that enumerates XOR(XOR(a,b),c) → XOR(a,XOR(b,c)) variants on `/tmp/longhorn/fp4-multiplier/src/fp4_mul.blif`, runs eSLIM with 3 sizes × 4 seeds × N variants. Budget ~30 min for first sweep.
+
+**Updates while Experiment A runs (still 2026-04-28):**
+- `experiments_eslim/exp_a_xor_reassoc.py` written and running in background (PID tracked). Sweep config: 12 XOR-of-XOR variants × 2 sizes (6, 8) × 4 seeds × 60s budget = ~24 min wall time.
+- Ledger: `experiments_eslim/exp_a_ledger.tsv` (tab-separated, append-only).
+- **Early observation (first 4 runs on loc#0):** eSLIM produces 58 internal gates consistently, but contest cell count after `eslim_to_gates.py` translation varies 64–66 across seeds. The *internal* count is invariant; the *contest* count depends on how many compound gates (NAND, NOR, XNOR, ANDN_A, ANDN_B) get expanded to AND+NOT pairs. Hypothesis: a sub-64 contest result requires eSLIM to land in a low-compound-gate basin where ≤5 NOTs are needed.
+- `LONGHORN_DEEP_EXPLAINER.md` written in parallel (~430 lines): line-by-line walk-through of 64-gate body, decomposition derivation, lower-bound table, verification recipes.
 
 ---
 

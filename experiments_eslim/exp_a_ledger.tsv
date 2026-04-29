@@ -1,0 +1,6 @@
+ts	variant	size	seed	init_internal	final_internal	contest_cells	ok
+19:58:49	loc0	6	7777	64	60	65	OK
+20:00:34	loc0	6	1	64	58	64	OK
+20:01:34	loc0	6	42	64	58	66	OK
+20:02:35	loc0	6	7777	64	58	65	OK
+20:03:36	loc0	6	13371337	64	58	66	OK

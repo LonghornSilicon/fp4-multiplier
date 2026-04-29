@@ -64,6 +64,38 @@ Architectural / technical choices and their rationale. Most recent first.
 
 ---
 
+## 2026-04-28 — Skip yosys / Phase 2 reproduction; go straight to Experiment A on canonical BLIF
+
+**Chose:** Use Longhorn's `fp4_mul.blif` (64 contest cells) directly as the starting point for Experiment A perturbations. Don't reproduce the 74-gate yosys+ABC baseline first.
+
+**Rejected:** Install yosys + ABC, run `yosys synth.ys` to regenerate 74 gates, then walk the entire eSLIM trajectory (74 → 70 → 65 → 64) from scratch.
+
+**Why:** yosys requires sudo apt install (user offered to run sudo but it's a dependency we'd block on). The reproduction is a calibration step — not strictly required for the perturbation campaign. We'd burn ~2 hours of compute reaching exactly the 64-gate netlist Longhorn already published. By starting from the canonical BLIF, we save those 2 hours and immediately attack the new question (can we push 64 → 63 via gate-neutral perturbation, untried at this depth).
+
+**Trade-off:** if our local eSLIM build behaves differently than Longhorn's, we wouldn't know. Mitigation: G6 preemptive eSLIM run on the canonical BLIF returned 64 contest cells — same as Longhorn. So our toolchain is calibrated.
+
+---
+
+## 2026-04-28 — Use pip with `--break-system-packages` instead of venv
+
+**Chose:** `pip3 install --user --break-system-packages pybind11 bitarray cirbo cmake`.
+
+**Rejected:** Set up a venv (`python3 -m venv` needs python3-venv apt package, requires sudo); use the existing `.venv/` (broken — missing pip).
+
+**Why:** WSL is a research environment, not production. The system Python isn't at risk for a few extra `--user` site-packages installs. Avoids sudo, avoids fixing the broken existing venv, avoids `pipx` overhead.
+
+---
+
+## 2026-04-28 — Track contest cells, not eSLIM internal gates
+
+**Chose:** The "official" gate count for our purposes is the count after `eslim_to_gates.py` translation (the contest cell count). All comparisons in `exp_a_ledger.tsv` use this number.
+
+**Rejected:** Use eSLIM's "internal gate count" as the metric. Tempting because eSLIM logs it directly.
+
+**Why:** eSLIM's internal representation includes compound primitives (NAND, NOR, XNOR, ANDN_A = `~A & B`, ANDN_B = `A & ~B`) that count as 1 internal gate but expand to 2 contest cells (1 AND/OR/XOR + 1 NOT). Empirical observation from first 4 Experiment A runs: 58 internal gates can produce contest counts of 64, 65, or 66 depending on seed. The contest count is what wins the assignment, not the internal count.
+
+---
+
 ## 2026-04-28 — Save full session context across multiple files (CONTEXT.md, PROGRESS.md, DECISIONS.md)
 
 **Chose:** Three separate handoff files, each with a single purpose. Memory entries also saved in `~/.claude/projects/.../memory/`.

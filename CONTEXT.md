@@ -35,28 +35,39 @@ Key triage results:
 
 ## Where we are when this session paused
 
-Phase 0 complete with empty result (expected). Plan says the next step is **Phase 1: install yosys + cmake + eSLIM + cirbo**, then **G6 preemptive eSLIM run on the unperturbed 64-gate netlist** (15 min) before any long compute.
+Phase 0 + Phase 1 + G6 preemptive done. Confirmed:
+- 64-gate netlist saturated under depth-1 substitution + DCE (Phase 0).
+- eSLIM tooling builds and runs (Phase 1: pybind11 + bitarray + cirbo + cmake all via pip; eSLIM compiled at /tmp/eSLIM/src/bindings/build).
+- G6 preemptive: eSLIM `--syn-mode sat --size 6` for 20s on the unperturbed 64-gate BLIF returns 64 contest cells (matches Longhorn's reported saturation).
+
+**Phase 2 (yosys + ABC reproduction) skipped intentionally** — we don't need yosys to start Experiment A; eSLIM consumes BLIF directly and we have Longhorn's canonical `fp4_mul.blif`.
 
 ## EXACT next step
 
 Resume by reading this file + `PROGRESS.md` + `DECISIONS.md`, then:
 
-```bash
-# Phase 1: install toolchain (~6 min, needs sudo)
-sudo apt-get install -y yosys cmake build-essential
-pip3 install --user pybind11 bitarray cirbo
-git clone https://github.com/fxreichl/eSLIM.git /tmp/eSLIM
-cd /tmp/eSLIM/src/bindings && cmake -B build && cmake --build build -j
+**Experiment A — gate-neutral XOR re-association on the canonical 64-gate BLIF.**
 
-# Smoke test
-yosys -V
-python3 -c "import cirbo; print(cirbo.__version__)"
-PYTHONPATH=/tmp/eSLIM/src/bindings/build python3 -c "import eslim_bindings"
+1. Enumerate XOR-of-XOR locations in `/tmp/longhorn/fp4-multiplier/src/fp4_mul.blif`. Candidates spotted: `w_25 = XOR(w_42, w_45=XOR(w_65, w_43))`, `w_15 = XOR(w_37, w_25=XOR)`, `w_55 = XOR(w_40=XOR, w_53)`, `w_58 = XOR(w_48=XOR, w_21=XOR)`, `w_21 = XOR(w_25=XOR, w_73)`, `w_26 = XOR(w_37, w_58=XOR)`. Several more once you walk the netlist programmatically.
+2. For each XOR-of-XOR location: rewrite `XOR(XOR(a,b),c)` → `XOR(a, XOR(b,c))` (algebraically identical, structurally different). Generate a perturbed BLIF.
+3. Flatten each perturbed BLIF via `/tmp/longhorn/fp4-multiplier/experiments_external/eslim/scripts/blif_to_aig.py`.
+4. Run eSLIM with 3 sizes (6, 8, 10) × 4 seeds for ~5 min each.
+5. Translate output back to contest cells via `eslim_to_gates.py` and count. Any variant landing below 64 = WIN; verify functionally and commit.
+
+```bash
+# Working directory layout
+/tmp/eslim_work/                    # scratch dir (already exists)
+/tmp/longhorn/fp4-multiplier/...    # reference repo
+$REPO/experiments/exp_a_xor_reassoc.py  # NEW driver script (TODO write)
+
+# Single eSLIM run pattern (already verified to work):
+PYTHONPATH=/tmp/eSLIM/src/bindings/build \
+  python3 /tmp/eSLIM/src/reduce.py \
+  /tmp/eslim_work/INPUT.blif /tmp/eslim_work/OUT.blif 300 \
+  --syn-mode sat --size 8 --seed 7777
 ```
 
-Then **G5** (verify our yosys+ABC reproduces 74 from `/tmp/longhorn/fp4-multiplier/src/fp4_mul.v`, ~30 sec) and **G6** (single eSLIM `--syn-mode sat --size 8` run on the 64-gate netlist, ~15 min).
-
-Confirm with the user before kicking off any multi-hour compute. The plan's Experiment A (gate-neutral perturbations + eSLIM at 64) is the lead, but only after G5 + G6 calibrate.
+Time budget: 1 variant × 1 seed × `--size 6` = 20 sec; full sweep of ~10 variants × 4 seeds × 3 sizes ≈ 1 hour total. **Stop and confirm with user before launching the wider campaign if first 5 variants find nothing.**
 
 ## Blockers / watch-outs
 
