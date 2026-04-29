@@ -71,6 +71,14 @@ This 5-NOT BLIF is a high-value seed for Round 2 perturbation:
 
 **Single most important thing to do next** (revised): fix `blif_verify.py` to handle `.names BUF` lines, verify `par_004_s6_seed7777_gates.blif` is 256/256 correct, then perturb it for Round 2.
 
+**ROUND 1 FINAL (2026-04-28, 22.75 min wall):**
+- 144 jobs, 100 BLIFs translated (44 size=8 timeouts at 60s budget — known issue).
+- Cell counts: 64 (×20), 65 (×49), 66 (×22), 67 (×7), 68 (×2).
+- NOT distribution: 5 (×1), 6 (×46), 7 (×38), 8 (×13), 9 (×2).
+- **No sub-64.** **One 5-NOT 64-gate variant** verified (commit `0edda3d`).
+
+**ROUND 2 LAUNCHED:** seeded from `experiments_eslim/fp4_64gate_5NOT_clean.blif`, 192 jobs × 4 workers = ~72 min wall. Ledger: `experiments_eslim/exp_a_round2_ledger.tsv`. In flight.
+
 ---
 
 (no prior entries — this is the first PROGRESS.md write.)
