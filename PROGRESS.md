@@ -47,6 +47,10 @@ Run Experiment A: enumerate gate-neutral XOR re-associations on the canonical 64
 - Ledger: `experiments_eslim/exp_a_ledger.tsv` (tab-separated, append-only).
 - **Early observation (first 4 runs on loc#0):** eSLIM produces 58 internal gates consistently, but contest cell count after `eslim_to_gates.py` translation varies 64–66 across seeds. The *internal* count is invariant; the *contest* count depends on how many compound gates (NAND, NOR, XNOR, ANDN_A, ANDN_B) get expanded to AND+NOT pairs. Hypothesis: a sub-64 contest result requires eSLIM to land in a low-compound-gate basin where ≤5 NOTs are needed.
 - `LONGHORN_DEEP_EXPLAINER.md` written in parallel (~430 lines): line-by-line walk-through of 64-gate body, decomposition derivation, lower-bound table, verification recipes.
+- **PARALLELIZATION:** killed sequential sweep, rewrote as `experiments_eslim/exp_a_parallel.py` with multiprocessing.Pool (8 workers; system has 12 cores). New sweep config: 12 variants × 2 sizes × 6 seeds = 144 runs, ~18 min wall time. Pushed to GitHub.
+- **Verifier:** `experiments_eslim/blif_verify.py` parses any .gate-form BLIF, topo-sorts, builds a Python multiplier function, runs through `eval_circuit.evaluate_fast` on the σ remap. Smoke-tested on canonical: 64 cells, 256/256 correct. Ready for any sub-64 candidate that comes back.
+- **Experiment B launched concurrently:** `experiments_eslim/exp_b_cirbo_cones.py` runs Cirbo SAT on small sub-cones. B.1/B.2/B.3 ran in seconds (small cones). B.4 (all 6 NOTs from raw a,b inputs → 6 NOT outputs) running, walks G upward UNSAT G=1..9 so far. **Caveat: don't-care handling — bv_to_truth_rows fills unreachable minterms with False, which over-constrains. Reachable-only sub-cone results may be misleading. B.4 has all 256 minterms reachable so its results are valid.**
+- **Sweep progress at 5 min:** 30/144 runs done, contest cells range {64, 65, 66, 67}, no sub-64 seen yet. ~13 more minutes for full sweep.
 
 ---
 

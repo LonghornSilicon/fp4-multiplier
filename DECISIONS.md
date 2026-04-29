@@ -96,6 +96,26 @@ Architectural / technical choices and their rationale. Most recent first.
 
 ---
 
+## 2026-04-28 — Parallelize eSLIM sweep with multiprocessing.Pool
+
+**Chose:** Run 8 eSLIM workers concurrently via `concurrent.futures.ProcessPoolExecutor`. System has 12 cores; reserved 4 for the OS / Cirbo / Claude Code itself.
+
+**Rejected:** Stick with sequential single-process driver.
+
+**Why:** eSLIM is single-threaded (verified via `top` — one process at 100% CPU). 144 runs sequentially would take ~3 hours; parallel with 8 workers takes ~22 min. Same results, 8x throughput. The sweep was burning compute that could be parallel.
+
+---
+
+## 2026-04-28 — Cirbo cone runs need don't-care support; defer until that's solved
+
+**Chose:** Note the don't-care issue in Experiment B's small cones (B.1, B.2, B.3); don't trust those UNSAT results. B.4 (all minterms reachable from primary inputs) is valid.
+
+**Rejected:** Trust Cirbo's UNSAT results on cones with reachable subset of minterms.
+
+**Why:** When sub-cone inputs are derived from earlier wires, only some minterm patterns are reachable. The current `bv_to_truth_rows` fills unreachable minterms with False, over-constraining the function. Cirbo TruthTableModel doesn't support don't-cares directly. To fix: either restrict to reachable minterms (need n-input function on m≤2^n combinations — Cirbo can't do that natively), or try multiple don't-care fills, or use Cirbo's relation-based search if available. Punt for now.
+
+---
+
 ## 2026-04-28 — Save full session context across multiple files (CONTEXT.md, PROGRESS.md, DECISIONS.md)
 
 **Chose:** Three separate handoff files, each with a single purpose. Memory entries also saved in `~/.claude/projects/.../memory/`.
