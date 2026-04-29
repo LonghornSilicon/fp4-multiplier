@@ -43,9 +43,11 @@ N_MINTERMS = 256
 
 
 class CnfBuilder:
-    def __init__(self):
+    def __init__(self, solver=None):
         self.next_var = 1
-        self.clauses = []
+        self.clauses = [] if solver is None else None
+        self.solver = solver
+        self.n_clauses = 0
 
     def new_var(self):
         v = self.next_var
@@ -53,10 +55,15 @@ class CnfBuilder:
         return v
 
     def add(self, *clause):
-        self.clauses.append(list(clause))
+        self.n_clauses += 1
+        if self.solver is not None:
+            self.solver.add_clause(clause)
+        else:
+            self.clauses.append(list(clause))
 
     def add_many(self, clauses):
-        self.clauses.extend(clauses)
+        for c in clauses:
+            self.add(*c)
 
     def at_most_one(self, vars):
         # Pairwise. Sufficient for our small selectors.
@@ -100,12 +107,13 @@ class CnfBuilder:
         self.equal(a, -out)
 
 
-def encode(K: int, targets: list[list[int]], pi_vals: list[list[int]]):
+def encode(K: int, targets: list[list[int]], pi_vals: list[list[int]], solver=None):
     """
     targets[o][m] = desired bit value (0 or 1) for output o at minterm m.
     pi_vals[i][m] = bit value of primary input i at minterm m.
+    If `solver` is given, clauses are streamed to it instead of buffered.
     """
-    cb = CnfBuilder()
+    cb = CnfBuilder(solver=solver)
 
     # Variables
     kind = [[cb.new_var() for _ in KINDS] for _ in range(K)]
@@ -126,6 +134,17 @@ def encode(K: int, targets: list[list[int]], pi_vals: list[list[int]]):
     # Each output has exactly one source
     for o in range(N_OUTPUTS):
         cb.exactly_one(out_sel[o])
+
+    # Symmetry break for commutative gates: forbid in0_idx >= in1_idx when
+    # kind in {AND, OR, XOR}. Halves the search space per commutative gate.
+    # Also rules out trivial AND(x,x)=x / OR(x,x)=x / XOR(x,x)=0.
+    # NOT is unary so in1 is irrelevant; no constraint added for NOT.
+    for g in range(K):
+        for s0 in range(N_INPUTS + g):
+            for s1 in range(s0 + 1):  # s1 <= s0 forbidden for commutative kinds
+                cb.add(-kind[g][KIND_AND], -in0_sel[g][s0], -in1_sel[g][s1])
+                cb.add(-kind[g][KIND_OR],  -in0_sel[g][s0], -in1_sel[g][s1])
+                cb.add(-kind[g][KIND_XOR], -in0_sel[g][s0], -in1_sel[g][s1])
 
     # Functional constraints. For each gate g and each minterm m:
     # We enumerate (i0, i1) source choices and (kind) choices and constrain val.
@@ -162,7 +181,7 @@ def encode(K: int, targets: list[list[int]], pi_vals: list[list[int]]):
                         enforce_eq(cb, sel_lits, val[g][m], "NOT", a_val, None, a_var, None)
 
         if g % 5 == 0:
-            print(f"  encoded gate {g}/{K} (clauses={len(cb.clauses)})", flush=True)
+            print(f"  encoded gate {g}/{K} (clauses={cb.n_clauses})", flush=True)
 
     # Output constraints: out_sel[o][s] /\ target[o][m] -> source val[s][m] matches.
     for o in range(N_OUTPUTS):
@@ -272,24 +291,23 @@ def main():
     pi_vals = [[(m >> i) & 1 for m in range(N_MINTERMS)] for i in range(N_INPUTS)]
 
     t0 = time.time()
-    cb, kind, in0_sel, in1_sel, out_sel, val = encode(args.K, targets, pi_vals)
-    print(f"\nEncoding done: vars={cb.next_var-1}, clauses={len(cb.clauses)}, "
-          f"time={time.time()-t0:.1f}s")
-
-    print(f"Solving with CaDiCaL (budget {args.time_budget}s)...")
     solver = Cadical103()
-    for c in cb.clauses:
-        solver.add_clause(c)
+    cb, kind, in0_sel, in1_sel, out_sel, val = encode(args.K, targets, pi_vals,
+                                                       solver=solver)
+    print(f"\nEncoding done: vars={cb.next_var-1}, clauses={cb.n_clauses}, "
+          f"time={time.time()-t0:.1f}s", flush=True)
+
+    print(f"Solving with CaDiCaL (budget {args.time_budget}s)...", flush=True)
     t1 = time.time()
     # PySAT lacks a clean timeout; we'll solve and let it run.
     # For real time-bound, run this script with `timeout Xs python3 ...`.
     sat = solver.solve()
     elapsed = time.time() - t1
-    print(f"\nResult: {'SAT' if sat else 'UNSAT'} in {elapsed:.1f}s")
+    print(f"\nResult: {'SAT' if sat else 'UNSAT'} in {elapsed:.1f}s", flush=True)
 
     if sat:
         model = solver.get_model()
-        print("\n*** FOUND CIRCUIT ***\n")
+        print("\n*** FOUND CIRCUIT ***\n", flush=True)
         decode_model(model, args.K, kind, in0_sel, in1_sel, out_sel)
 
 
