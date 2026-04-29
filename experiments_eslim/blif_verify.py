@@ -23,12 +23,21 @@ for v in FP4_TABLE:
 
 
 def parse_gate_blif(path):
-    """Returns (inputs, outputs, gates)."""
+    """Returns (inputs, outputs, gates).
+
+    Handles three line types:
+      - .gate KIND A=x B=y Y=z   → AND2/OR2/XOR2/NOT1 cells (each = 1 gate)
+      - .names X Y               → followed by '1 1' = BUF (alias, 0 cost)
+      - .names Y                 → followed by '1' or empty = const1/const0 (0 cost)
+    """
     with open(path) as f:
         lines = f.read().splitlines()
     inputs, outputs, gates = [], [], []
-    for ln in lines:
-        ln = ln.strip()
+    i = 0
+    n = len(lines)
+    while i < n:
+        ln = lines[i].strip()
+        i += 1
         if not ln or ln.startswith("#"): continue
         if ln.startswith(".inputs"):
             inputs = ln.split()[1:]
@@ -45,6 +54,32 @@ def parse_gate_blif(path):
                 gates.append((kind, pinmap["Y"], [pinmap["A"]]))
             elif kind in ("AND2", "OR2", "XOR2"):
                 gates.append((kind, pinmap["Y"], [pinmap["A"], pinmap["B"]]))
+        elif ln.startswith(".names"):
+            sigs = ln.split()[1:]
+            tts = []
+            while i < n:
+                t = lines[i].strip()
+                if t.startswith(".") or not t:
+                    break
+                if not t.startswith("#"):
+                    tts.append(t)
+                i += 1
+            if len(sigs) == 2:
+                src, dst = sigs
+                if tts == ["1 1"]:
+                    # BUF: dst = src
+                    gates.append(("BUF", dst, [src]))
+                elif tts == ["0 1"]:
+                    # NOT via .names form
+                    gates.append(("NOT1", dst, [src]))
+            elif len(sigs) == 1:
+                dst = sigs[0]
+                if tts == ["1"]:
+                    gates.append(("CONST1", dst, []))
+                elif tts == [] or tts == ["0"]:
+                    gates.append(("CONST0", dst, []))
+        elif ln.startswith(".end"):
+            break
     return inputs, outputs, gates
 
 
@@ -117,6 +152,12 @@ def make_multiplier(blif_path):
                 wires[out] = OR(in_vals[0], in_vals[1])
             elif kind == "XOR2":
                 wires[out] = XOR(in_vals[0], in_vals[1])
+            elif kind == "BUF":
+                wires[out] = in_vals[0]
+            elif kind == "CONST0":
+                wires[out] = 0
+            elif kind == "CONST1":
+                wires[out] = 1
 
         # Outputs are y[0]..y[8]; the assignment expects MSB first.
         out_vals = [wires[o] for o in outputs]
@@ -137,9 +178,18 @@ def main():
         sys.exit(1)
     blif = sys.argv[1]
     mult, n_gates = make_multiplier(blif)
-    print(f"Loaded {blif}: {n_gates} contest cells")
+    # Count only billable cells (BUF / CONST are 0 cost)
+    inputs, outputs, gates = parse_gate_blif(blif)
+    n_billable = sum(1 for g in gates if g[0] in ("AND2","OR2","XOR2","NOT1"))
+    n_buf = sum(1 for g in gates if g[0] == "BUF")
+    n_const = sum(1 for g in gates if g[0] in ("CONST0","CONST1"))
+    print(f"Loaded {blif}")
+    print(f"  billable cells (AND2/OR2/XOR2/NOT1): {n_billable}")
+    print(f"  BUF aliases (free): {n_buf}")
+    print(f"  consts (free): {n_const}")
+    print(f"  total parsed: {n_gates}")
     correct, gc, errs = evaluate_fast(mult, INPUT_REMAP)
-    print(f"Verified gate count (eval_circuit): {gc}")
+    print(f"Verified gate count via eval_circuit (counts NOT/AND/OR/XOR calls): {gc}")
     print(f"Correct: {correct}, errors: {len(errs)}")
     if not correct:
         for e in errs[:5]: print("   error:", e)
