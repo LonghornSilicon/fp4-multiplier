@@ -42,11 +42,28 @@ Phase 0 + Phase 1 + G6 preemptive done. Confirmed:
 
 **Phase 2 (yosys + ABC reproduction) skipped intentionally** — we don't need yosys to start Experiment A; eSLIM consumes BLIF directly and we have Longhorn's canonical `fp4_mul.blif`.
 
+## ⚠️ ACTIVE STATE AT HANDOVER (2026-04-28)
+
+**Background processes still running** (do NOT kill before checking):
+- `exp_a_parallel.py` — eSLIM perturbation sweep, ~70/144 done at handover. Output: `/tmp/exp_a_par.log`. Ledger: `experiments_eslim/exp_a_ledger.tsv`.
+- 8 eSLIM workers running concurrently from the pool (`/tmp/eSLIM/src/reduce.py`).
+
+To check status: `tail -10 /tmp/exp_a_par.log` and `ps aux | grep reduce.py | grep -v grep | wc -l`. If still running, let it finish (~10 more min wall) before launching round 2.
+
+**🎯 BREAKTHROUGH FINDING (2026-04-28, mid-sweep):**
+Found a **5-NOT 64-gate solution** at `/tmp/eslim_work/par_004_s6_seed7777_gates.blif`. Cell breakdown: `5 NOT1 + 24 AND2 + 12 OR2 + 23 XOR2 = 64`. Longhorn's docs explicitly stated all 124 known 64-gate solutions have exactly 6 NOTs — we found one outside that signature. This is a high-value Round 2 perturbation seed. Verification is BLOCKED because `experiments_eslim/blif_verify.py` doesn't handle the `.names X Y\n1 1` BUF aliases that `eslim_to_gates.py` emits. **First task next session:** extend `blif_verify.py` to parse BUF aliases (it currently only handles `.gate ...` lines), then verify this 5-NOT BLIF passes 256/256.
+
 ## EXACT next step
 
 Resume by reading this file + `PROGRESS.md` + `DECISIONS.md`, then:
 
-**Experiment A — gate-neutral XOR re-association on the canonical 64-gate BLIF.**
+**STEP 1 (urgent, ~10 min):** Fix `experiments_eslim/blif_verify.py` to also parse `.names X Y\n1 1` lines as BUFs (alias `Y = X`). Then verify the 5-NOT 64-gate BLIF at `/tmp/eslim_work/par_004_s6_seed7777_gates.blif` passes `eval_circuit.evaluate_fast` 256/256. If it fails, eSLIM produced a buggy translation (escalate); if it passes, this is genuinely a novel 64-gate basin contradicting Longhorn's "all 6 NOTs" empirical claim — commit and push immediately.
+
+**STEP 2 (~30-60 min):** Use the 5-NOT 64-gate BLIF as a Round 2 perturbation seed. Run `experiments_eslim/exp_a2_pair_perturb.py` modified to start from this BLIF instead of the canonical, with broader seed sweep. Hypothesis: a 5-NOT basin perturbed gate-neutrally may collapse to 63 cells via further inverter sharing.
+
+**STEP 3 (background, alternative):** If the running `exp_a_parallel.py` sweep is still in flight when you resume, let it finish — its ledger entries become input to a wider Round 2 (any other 5-NOT or low-NOT 64-cell variants found are extra seeds).
+
+**Original Experiment A (still valid for reference):** gate-neutral XOR re-association on the canonical 64-gate BLIF.
 
 1. Enumerate XOR-of-XOR locations in `/tmp/longhorn/fp4-multiplier/src/fp4_mul.blif`. Candidates spotted: `w_25 = XOR(w_42, w_45=XOR(w_65, w_43))`, `w_15 = XOR(w_37, w_25=XOR)`, `w_55 = XOR(w_40=XOR, w_53)`, `w_58 = XOR(w_48=XOR, w_21=XOR)`, `w_21 = XOR(w_25=XOR, w_73)`, `w_26 = XOR(w_37, w_58=XOR)`. Several more once you walk the netlist programmatically.
 2. For each XOR-of-XOR location: rewrite `XOR(XOR(a,b),c)` → `XOR(a, XOR(b,c))` (algebraically identical, structurally different). Generate a perturbed BLIF.

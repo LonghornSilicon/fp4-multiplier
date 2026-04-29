@@ -51,6 +51,25 @@ Run Experiment A: enumerate gate-neutral XOR re-associations on the canonical 64
 - **Verifier:** `experiments_eslim/blif_verify.py` parses any .gate-form BLIF, topo-sorts, builds a Python multiplier function, runs through `eval_circuit.evaluate_fast` on the σ remap. Smoke-tested on canonical: 64 cells, 256/256 correct. Ready for any sub-64 candidate that comes back.
 - **Experiment B launched concurrently:** `experiments_eslim/exp_b_cirbo_cones.py` runs Cirbo SAT on small sub-cones. B.1/B.2/B.3 ran in seconds (small cones). B.4 (all 6 NOTs from raw a,b inputs → 6 NOT outputs) running, walks G upward UNSAT G=1..9 so far. **Caveat: don't-care handling — bv_to_truth_rows fills unreachable minterms with False, which over-constrains. Reachable-only sub-cone results may be misleading. B.4 has all 256 minterms reachable so its results are valid.**
 - **Sweep progress at 5 min:** 30/144 runs done, contest cells range {64, 65, 66, 67}, no sub-64 seen yet. ~13 more minutes for full sweep.
+- **Sweep progress at 10 min (~63/144):** still no sub-64. Wrote `experiments_eslim/analyze_results.py` to scan all `par_*_gates.blif` outputs for cell breakdowns + NOT counts.
+
+**🎯 BREAKTHROUGH (2026-04-28, ~10 min into sweep):**
+Analyzer flagged `par_004_s6_seed7777_gates.blif` as a **5-NOT 64-gate solution**. Cell breakdown:
+```
+NOT1: 5  (vs canonical 6)
+AND2: 24 (vs canonical 25)
+OR2:  12 (matches)
+XOR2: 23 (vs canonical 21)
+Total: 64
+```
+This contradicts Longhorn's "all 124 known 64-gate solutions have 6 NOTs" empirical invariant. The eSLIM landed in a basin trading 1 NOT + 1 AND for 2 XORs. **NOT YET VERIFIED** — `blif_verify.py` is broken on the `.names X Y\n1 1` BUF aliases that `eslim_to_gates.py` emits in this output. Needs ~10 min fix to parse BUFs.
+
+This 5-NOT BLIF is a high-value seed for Round 2 perturbation:
+1. Verify correctness (extend blif_verify.py).
+2. Use as seed for `exp_a2_pair_perturb.py` (paired XOR re-associations).
+3. If a 5-NOT 64-gate variant exists, a 4-NOT might too — and a 4-NOT solution could plausibly compress to 63 cells via further inverter-sharing.
+
+**Single most important thing to do next** (revised): fix `blif_verify.py` to handle `.names BUF` lines, verify `par_004_s6_seed7777_gates.blif` is 256/256 correct, then perturb it for Round 2.
 
 ---
 
