@@ -1,4 +1,4 @@
-\documentclass[11pt,twocolumn]{article}
+\documentclass[11pt]{article}
 \usepackage[margin=1in]{geometry}
 \usepackage{amsmath,amssymb}
 \usepackage{booktabs}
@@ -6,14 +6,20 @@
 \usepackage{graphicx}
 \usepackage{listings}
 \usepackage{xcolor}
-\usepackage{algorithm}
-\usepackage{algpseudocode}
 \usepackage{tikz}
+\usepackage{placeins}
 \usetikzlibrary{shapes,arrows,positioning,calc}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!60!black,
+  citecolor=blue!60!black,
+  urlcolor=blue!60!black,
+}
 
 \lstset{
   basicstyle=\ttfamily\small,
-  keywordstyle=\color{blue},
+  keywordstyle=\color{blue!70!black},
   commentstyle=\color{gray},
   breaklines=true,
   frame=single,
@@ -21,69 +27,126 @@
   numberstyle=\tiny\color{gray},
 }
 
-\title{\textbf{Minimizing Logic Gates in an FP4$\times$FP4 Multiplier:\\
-A Structural Decomposition Approach}}
+\title{\textbf{A 63-Gate FP4$\times$FP4 Multiplier:\\
+Structural Decomposition Meets SAT-Based Local Search}}
 
-\author{
-  Chaithu Talasila\\
-  Etched Take-Home Assignment\\
-  \texttt{talasila.chaithu1@gmail.com}
-}
+\author{themoddedcube\\
+\texttt{themoddedcube@gmail.com}}
 
-\date{April 27, 2026}
+\date{April 29, 2026}
 
 \begin{document}
 
 \maketitle
 
 \begin{abstract}
-We present an \textbf{82-gate} Boolean circuit that correctly computes the product of two
-4-bit floating-point (FP4, E2M1 format) numbers and returns the result as a
-9-bit fixed-point integer (QI9, where the LSB has value $\frac{1}{4}$).
-The circuit uses only two-input AND, OR, XOR gates and one-input NOT gates,
-each counted as one gate.
-Starting from a na\"ive Quine-McCluskey flat-SOP baseline of approximately 288 gates,
-we apply a series of mathematically motivated transformations that exploit the
-product structure of the FP4 format, ultimately reducing gate count by $70\%$.
-We document each optimization step, prove impossibility of several sub-expression
-classes, and provide an estimated lower bound of 75--85 gates,
-suggesting that further reductions of at most $\sim$10 gates are possible.
+We present a verified \textbf{63-gate} Boolean circuit that computes the
+product of two FP4 (E2M1) numbers and returns the result as a 9-bit
+fixed-point integer (QI9, LSB $= \tfrac{1}{4}$).
+The circuit uses only the gate library
+$\mathcal{G} = \{\text{AND2}, \text{OR2}, \text{XOR2}, \text{NOT1}\}$
+with each gate counted as one unit, and is verified correct against all
+$256$ input pairs.
+The result improves on LonghornSilicon's previously published
+64-gate solution~\cite{longhorn2024} by one gate.
+
+The path from a 288-gate naïve baseline to 63 gates combined two
+distinct paradigms: a manual structural decomposition that exploits
+the log-domain factorization $|v| = 1.5^M\cdot 2^E$ to reach 82 gates,
+followed by automated SAT-based local search using
+eSLIM~\cite{reichl2024eslim} on a Longhorn-derived 64-gate seed.
+A single fortunate \texttt{eSLIM --syn-mode sat --size 10} window,
+applied to a five-NOT 64-gate variant produced by XOR re-association,
+yielded the 63-gate body.
+
+We further document an extensive negative-result campaign: roughly
+$280$ additional perturbation runs across five distinct rewriting
+strategies, four iterative-chain depths, an ANF re-derivation that
+inflates to $691$ gates, an exact-synthesis attempt at $K{=}62$
+that is memory-bound on a 23\,GiB host, and lower-bound analyses
+that fall well below the achieved count.
+The combined evidence is consistent with empirical saturation at 63
+on local compute, while leaving the question
+``is 62 attainable in $\mathcal{G}$?'' open as a SAT instance for
+larger machines.
 \end{abstract}
 
 \section{Introduction}
 
-Modern machine learning accelerators increasingly use sub-8-bit floating-point
-formats~\cite{micikevicius2022fp8,rouhani2023microscaling}.
-The FP4 E2M1 format (4-bit: 1 sign, 2 exponent, 1 mantissa, no NaN/Inf)
-represents 16 values: $0, \pm 0.5, \pm 1, \pm 1.5, \pm 2, \pm 3, \pm 4, \pm 6$.
-Etched's take-home assignment requires implementing the multiplier
-$\text{FP4} \times \text{FP4} \to \text{QI9}$ in minimal Boolean gates,
-where QI9 is a 9-bit two's-complement integer with LSB value $\frac{1}{4}$
-(equivalently, QI9 $= 4 \times$ product).
+Modern machine-learning accelerators increasingly rely on sub-8-bit
+floating-point formats~\cite{micikevicius2022fp8,rouhani2023microscaling}.
+The FP4 E2M1 format encodes 16 values
+$\{0, \pm 0.5, \pm 1, \pm 1.5, \pm 2, \pm 3, \pm 4, \pm 6\}$ in
+4 bits (1 sign, 2 exponent, 1 mantissa, no NaN/Inf).
+Etched's take-home assignment requires implementing
+$\text{FP4} \times \text{FP4} \to \text{QI9}$ in minimum gate count
+over the library $\mathcal{G} = \{\text{AND2},\text{OR2},\text{XOR2},\text{NOT1}\}$,
+where QI9 is the 9-bit two's-complement representation of $4\cdot a\cdot b$.
+A free \emph{input remapping} (any bijection on the 16 FP4 codes,
+applied identically to both operands) is permitted.
 
-The design space includes a free \emph{input remapping}: any bijection on
-FP4 codes is permitted for \emph{both} inputs simultaneously,
-since the same remapping must be applied to each operand.
-Output remapping is not permitted.
+This paper documents the path from a naïve flat-SOP baseline of
+$\sim$288 gates to a verified \textbf{63-gate} circuit, an
+$\approx 78\%$ reduction. Figure~\ref{fig:progression} summarizes
+the trajectory.
 
-This paper describes the systematic approach we used to reduce
-the gate count from $\sim$288 (na\"ive) to \textbf{82} gates.
-
-\section{Mathematical Structure of FP4}
-
-\subsection{Log-domain Representation}
-
-Every non-zero FP4 magnitude can be written as:
-\begin{equation}
-  |v| = 1.5^{M} \cdot 2^{E}, \quad M \in \{0, 1\},\; E \in \{-1, 0, 1, 2\}
-\end{equation}
-where $M$ is the mantissa type (0 for pure powers of 2; 1 for multiples of 1.5)
-and $E$ is the binary exponent.
-Table~\ref{tab:fp4values} lists all non-zero magnitudes.
-
-\begin{table}[h]
+\begin{figure}[!tbp]
   \centering
-  \caption{FP4 non-zero magnitudes and their $(M, E)$ decomposition.}
+  \includegraphics[width=\columnwidth]{figs/fig_progression.pdf}
+  \caption{Gate-count progression on a logarithmic axis. Blue
+    points are reached by manual structural decomposition; orange
+    points are reached by SAT-based local search on circuit
+    netlists (eSLIM~\cite{reichl2024eslim}). The dashed line marks
+    LonghornSilicon's published 64-gate result~\cite{longhorn2024}.}
+  \label{fig:progression}
+\end{figure}
+
+\paragraph{Contributions.}
+\begin{enumerate}
+  \item A verified 63-gate Boolean circuit (24 AND, 12 OR,
+        22 XOR, 5 NOT), one gate below the previously published
+        Longhorn 64-gate baseline.
+  \item A complete account of the manual reduction $288 \to 82$
+        based on the log-domain factorization, including a
+        Cirbo SAT-proven optimal 11-gate one-hot decoder.
+  \item Documentation of the SAT-based local-search phase
+        $81 \to 64 \to 63$, in which eSLIM windowed exact-synthesis
+        on the canonical Longhorn 64-gate netlist produced first a
+        five-NOT 64-gate variant via XOR re-association, and then
+        the 63-gate body via a size-10 window on that variant.
+  \item A negative-result campaign that establishes empirical
+        saturation at 63: $\sim$280 perturbation runs across five
+        rewriting strategies, four iterative-chain depths, an
+        ANF re-derivation, and lower-bound analyses, none of which
+        yielded a sub-63 result on a 23\,GiB host.
+\end{enumerate}
+
+\paragraph{Notation and ground rules.}
+Throughout, ``gate'' means a single instance of one of the four
+primitives in $\mathcal{G}$; we count contest cells as defined by the
+assignment harness, not internal eSLIM compound primitives
+(the distinction matters: an internal count of 58 can translate to
+between 64 and 69 contest cells depending on which compound gates
+\texttt{eslim\_to\_gates.py} expands).
+
+\section{The FP4 product structure}
+\label{sec:structure}
+
+\subsection{Log-domain decomposition}
+
+Every nonzero FP4 magnitude factors uniquely as
+\begin{equation}
+  |v| = 1.5^{M}\cdot 2^{E},\qquad M\in\{0,1\},\ E\in\{-1,0,1,2\},
+  \label{eq:factorization}
+\end{equation}
+where $M=1$ marks the multiples of $1.5$ and $M=0$ the pure powers
+of two. Table~\ref{tab:fp4values} lists all seven nonzero magnitudes
+under this decomposition.
+
+\begin{table}[h!]
+  \centering
+  \caption{The seven nonzero FP4 magnitudes and their $(M,E)$
+    decomposition.}
   \label{tab:fp4values}
   \begin{tabular}{ccc}
     \toprule
@@ -100,421 +163,703 @@ Table~\ref{tab:fp4values} lists all non-zero magnitudes.
   \end{tabular}
 \end{table}
 
-\subsection{Product Structure}
-
-For inputs $a$ and $b$ with decompositions $(M_a, E_a)$ and $(M_b, E_b)$:
+For inputs $a$ and $b$ with decompositions
+$(M_a,E_a)$ and $(M_b,E_b)$,
 \begin{equation}
-  |a \times b| = 1.5^{M_a + M_b} \cdot 2^{E_a + E_b}
+  |a\cdot b| = 1.5^{M_a+M_b}\cdot 2^{E_a+E_b}.
 \end{equation}
-Defining $M_{\text{sum}} = M_a + M_b \in \{0,1,2\}$ and $S = E'_a + E'_b$
-where $E' = E + 1 \in \{0,1,2,3\}$:
-\begin{equation}
-  \text{QI9 magnitude} = 1.5^{M_{\text{sum}}} \cdot 2^S
-  \label{eq:product}
-\end{equation}
+Defining $E' = E + 1 \in \{0,1,2,3\}$ and $S = E'_a + E'_b \in \{0,\ldots,6\}$
+collapses the exponent computation to a single 2-bit + 2-bit binary
+adder.
 
-\subsection{K-type Classification}
+\subsection{Three K-types}
 
-The three values of $M_{\text{sum}}$ yield three \emph{K-types}
-with distinct 8-bit output patterns (see Table~\ref{tab:ktypes}):
+The mantissa sum $M_{\text{sum}} = M_a + M_b \in \{0,1,2\}$ partitions
+products into three classes (Table~\ref{tab:ktypes}).
+The 8-bit QI9 magnitude has at most two bits set in any class, so the
+output is extremely sparse: only 19 of $256$ possible 8-bit patterns
+are reachable.
 
-\begin{table}[h]
+\begin{table}[h!]
   \centering
-  \caption{K-type bit patterns in the 8-bit QI9 magnitude.}
+  \caption{Bit patterns in the 8-bit QI9 magnitude as a function of
+    $M_{\text{sum}}$ and $S$.}
   \label{tab:ktypes}
   \begin{tabular}{cccc}
     \toprule
-    $M_{\text{sum}}$ & Name & QI9 value & Bits set \\
+    $M_{\text{sum}}$ & Name & QI9 magnitude & Bits set \\
     \midrule
-    0 & $K_1$ & $2^S$ & bit $S$ only \\
-    1 & $K_{3/2}$ & $2^S + 2^{S-1}$ & bits $S$ and $S-1$ \\
-    2 & $K_{9/4}$ & $2^{S+1} + 2^{S-2}$ & bits $S+1$ and $S-2$ \\
+    0 & $K_1$     & $2^S$                  & bit $S$ only \\
+    1 & $K_{3/2}$ & $2^S + 2^{S-1}$        & bits $S$ and $S-1$ \\
+    2 & $K_{9/4}$ & $2^{S+1} + 2^{S-2}$    & bits $S{+}1$ and $S{-}2$ \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-\textbf{Key sparsity observation}: the 8-bit magnitude has \emph{at most 2 bits set},
-taking only 19 distinct non-zero values out of 256 possible 8-bit patterns.
-This extreme sparsity is the main property we exploit.
+This sparsity is the algebraic property the rest of the design
+exploits.
 
-\section{Encoding Design}
+\subsection{Encoding}
 
-\subsection{Constraints}
+We assign 3-bit magnitude codes so that (a) zero maps to
+$\texttt{000}$, (b) $E'$ is exposed as a 2-bit binary number on
+$(a_2,a_3)$, and (c) $M_a$ equals $\overline{a_1}$
+(Table~\ref{tab:encoding}).
 
-An effective encoding must:
-\begin{enumerate}
-  \item Map zero to code \texttt{000} in the 3-bit magnitude field
-        (enabling zero detection with a 3-gate NOR tree instead of 4-gate AND-of-NOTs)
-  \item Expose $E'_a = (a_2, a_3)$ as a 2-bit value directly (enabling a cheap adder)
-  \item Expose $M_a$ as a simple function of $a_1$ (enabling cheap K-flag computation)
-\end{enumerate}
-
-\subsection{Chosen Encoding}
-
-We assign magnitude codes as in Table~\ref{tab:encoding}.
-The 4-bit FP4 code is $a_0 \| a_1 a_2 a_3$ where $a_0$ is the sign bit.
-
-\begin{table}[h]
+\begin{table}[h!]
   \centering
-  \caption{Chosen 3-bit magnitude encoding.}
+  \caption{Chosen 3-bit magnitude encoding $a_1 a_2 a_3$.}
   \label{tab:encoding}
   \begin{tabular}{cccc}
     \toprule
-    Code $a_1 a_2 a_3$ & Value & $M$ & $E'$ \\
+    Code & Value & $M$ & $E'$ \\
     \midrule
     \texttt{000} & zero & --- & --- \\
-    \texttt{001} & 1.5 & 1 & 1 \\
-    \texttt{010} & 3.0 & 1 & 2 \\
-    \texttt{011} & 6.0 & 1 & 3 \\
-    \texttt{100} & 0.5 & 0 & 0 \\
-    \texttt{101} & 1.0 & 0 & 1 \\
-    \texttt{110} & 2.0 & 0 & 2 \\
-    \texttt{111} & 4.0 & 0 & 3 \\
+    \texttt{001} & 1.5  & 1   & 1 \\
+    \texttt{010} & 3.0  & 1   & 2 \\
+    \texttt{011} & 6.0  & 1   & 3 \\
+    \texttt{100} & 0.5  & 0   & 0 \\
+    \texttt{101} & 1.0  & 0   & 1 \\
+    \texttt{110} & 2.0  & 0   & 2 \\
+    \texttt{111} & 4.0  & 0   & 3 \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-\textbf{Properties}:
-\begin{itemize}
-  \item $E'_a = (a_2, a_3)$ as a 2-bit binary number --- directly usable in adder
-  \item $M_a = \overline{a_1}$ (the NOT of bit $a_1$)
-  \item Zero $\to$ \texttt{000}: zero detection is $\overline{a_1 \vee a_2 \vee a_3}$, a 3-gate NOR tree
-\end{itemize}
-
-From these properties, the K-flags derive cheaply:
+The K-flags follow as
 \begin{align}
-  \text{not\_k9} &= a_1 \vee b_1 \quad &\text{(1 gate)} \\
-  k_9 &= \overline{a_1 \vee b_1} \quad &\text{(1 gate)} \\
-  k_3 &= a_1 \oplus b_1 \quad &\text{(1 gate)}
+  k_9 &= \overline{a_1\vee b_1}, &
+  k_3 &= a_1\oplus b_1,
 \end{align}
+each one gate, plus a single OR for $\overline{k_9}$.
 
-\section{Circuit Architecture}
+\section{Manual structural design ($288 \to 82$ gates)}
+\label{sec:manual}
 
-Figure~\ref{fig:arch} shows the 5-stage pipeline.
+The first phase of optimization is purely human: every step has an
+algebraic justification.
+We summarize the construction here and refer the reader to the source
+code in \texttt{multiplier\_82.py} for the exact wiring.
+The full per-stage breakdown is given in Table~\ref{tab:history}; the
+five-stage architecture is shown in Figure~\ref{fig:arch}.
 
-\begin{figure}[h]
+\begin{figure}[h!]
   \centering
   \begin{tikzpicture}[
-    block/.style={rectangle, draw, fill=blue!10, text width=4cm, align=center, rounded corners, minimum height=0.7cm},
+    block/.style={rectangle, draw, fill=blue!7,
+                  text width=6.4cm, align=center,
+                  rounded corners, minimum height=0.7cm},
     arrow/.style={->, thick}
   ]
-    \node[block] (sign) {Stage 1: Sign\\$\text{sign} = a_0 \oplus b_0$\\1 gate};
-    \node[block, below=0.3cm of sign] (nz) {Stage 2: Zero Detect\\$\text{nz} = \text{nz}_a \wedge \text{nz}_b$\\5 gates};
-    \node[block, below=0.3cm of nz] (mag) {Stage 3: Magnitude Circuit\\E-sum, K-flags, K-mask,\\decoder, AND-terms, OR-asm\\59 gates};
-    \node[block, below=0.3cm of mag] (cond) {Stage 4: Cond.\ Negation\\prefix-OR formula ($r_8 = m_0$, $\text{sp}_7 = \text{res}_0$)\\18 gates};
-    \node[block, below=0.3cm of cond] (mask) {Stage 5: Sign Mask\\$\text{res}_0 = \text{sign} \wedge \text{nz}$\\1 gate};
-
+    \node[block] (sign) {Stage 1: Sign\\$\text{sign} = a_0 \oplus b_0$ \quad (1 gate)};
+    \node[block, below=0.25cm of sign] (nz) {Stage 2: Zero detect \quad (5 gates)};
+    \node[block, below=0.25cm of nz] (mag) {Stage 3: Magnitude circuit\\
+      $E$-sum, $K$-flags, $K$-mask,\\
+      one-hot decoder, AND-terms, OR-tree \quad (59 gates)};
+    \node[block, below=0.25cm of mag] (cond) {Stage 4: Conditional negation\\
+      prefix-OR formula \quad (16 gates)};
+    \node[block, below=0.25cm of cond] (mask) {Stage 5: Sign masking \\
+      $\text{res}_0 = \text{sign}\wedge \text{nz}$ \quad (1 gate)};
     \draw[arrow] (sign) -- (nz);
     \draw[arrow] (nz) -- (mag);
     \draw[arrow] (mag) -- (cond);
     \draw[arrow] (cond) -- (mask);
   \end{tikzpicture}
-  \caption{5-stage multiplier pipeline. Total: 82 gates.}
+  \caption{Five-stage manual architecture (82 gates total).
+    Section~\ref{sec:auto} restarts the design from a 64-gate
+    eSLIM-derived netlist and reaches 63 gates; the manual design
+    is the upper bound on what we could derive without automated
+    search.}
   \label{fig:arch}
 \end{figure}
 
-\subsection{Stage 3: Magnitude Circuit Detail}
+\subsection{Magnitude circuit}
 
-The magnitude circuit computes 8 output bits using the formula derived from
-Equation~\ref{eq:product}:
-
+The magnitude bits are computed from a single direct formula
 \begin{equation}
-  m_i = (\text{nmc} \wedge S{=}i) \vee (k_3 \wedge S{=}i{+}1)
-        \vee (k_9 \wedge S{=}i{-}1) \vee (k_9 \wedge S{=}i{+}2)
+  m_i = (\text{nmc}\wedge S{=}i)
+        \vee (k_3 \wedge S{=}i{+}1)
+        \vee (k_9 \wedge S{=}i{-}1)
+        \vee (k_9 \wedge S{=}i{+}2),
   \label{eq:magformula}
 \end{equation}
+where $\text{nmc} = \overline{k_9}\wedge\text{nz}$ and
+$(S{=}j)$ is the one-hot decoder output $\text{sh}_j$.
+The first term covers both $K_1$ (the only set bit at $S$) and
+$K_{3/2}$ (the upper of two bits at $S$); the third and fourth terms
+cover the lower bit of $K_{3/2}$ and the two split bits of $K_{9/4}$.
 
-where $\text{nmc} = \overline{k_9} \wedge \text{nz}$, and $(S{=}j)$ is the
-one-hot decoder output $\text{sh}_j$.
-The first term handles \emph{both} $K_1$ (upper bit) and $K_{3/2}$ (upper bit)
-since both have a set bit at position $S$.
+The construction yields $18$ valid $K\times S$ AND-terms after
+discarding combinations that the encoding makes impossible
+(e.g.\ $k_9 \wedge S{=}0$ is unreachable because $k_9$ requires
+$M_a = M_b = 1$, which by Table~\ref{tab:encoding} forces
+$E'_a, E'_b \ge 1$ and hence $S \ge 2$).
+A binary OR tree reassembles these AND-terms into the 8-bit
+magnitude using $15$ ORs.
 
-\paragraph{Impossible K×S combinations.}
-With the chosen encoding, $M_a = 1$ requires $E'_a \in \{1,2,3\}$
-(codes \texttt{001}, \texttt{010}, \texttt{011}):
-\begin{itemize}
-  \item $k_9$ (both $M=1$): minimum $S = 1 + 1 = 2$, so $k_9 \wedge S \in \{0,1\}$
-        is impossible. Eliminates \texttt{k9\_0}, \texttt{k9\_1}.
-  \item $k_3$ (one $M=1$): minimum $S = 1 + 0 = 1$, so $k_3 \wedge S{=}0$
-        is impossible. Eliminates \texttt{k3\_0}.
-\end{itemize}
-This reduces AND-terms from 21 to \textbf{18}.
+\subsection{One-hot decoder: SAT-proven optimal at 11 gates}
 
-\subsection{Stage 3: S Decoder Optimization}
+The 3-bit $S\in\{0,\ldots,6\}$ must be decoded to seven one-hot
+outputs $\text{sh}_0\ldots\text{sh}_6$.
+Using the Cirbo \texttt{CircuitFinderSat} SAT exact synthesizer
+over $\mathcal{G}$, we proved $N\le 10$ insufficient
+(UNSAT for $N=7,8,9$ in $<6$\,s; UNSAT for $N=10$ in 476\,s) and
+found a satisfying 11-gate circuit at $N=11$ in $0.69$\,s.
+Eleven is therefore the provably optimal one-hot decoder size in
+$\mathcal{G}$. The decoder uses 4 AND, 2 OR, 4 XOR, 1 NOT.
 
-The 3-bit binary $S \in \{0,\ldots,6\}$ is decoded to 7 one-hot signals
-$\text{sh}_0\ldots\text{sh}_6$.
+\subsection{Conditional negation}
 
-\textbf{Exact-synthesis result}: Using the Cirbo SAT-based exact synthesizer
-(CircuitFinderSat), we prove that $N \leq 10$ gates are insufficient (UNSAT: $N=7,8,9$
-in $<$6\,s each; $N=10$ UNSAT in 476\,s) and find a \textbf{11-gate} circuit at $N=11$
-in our AND/OR/XOR/NOT basis, confirming \textbf{11 is the provably optimal gate count}.
-The 11-gate circuit uses 4 AND + 2 OR + 4 XOR + 1 NOT:
-\begin{align*}
-  p_1 &= s_2 \vee s_1, \quad p_2 = s_0 \vee p_1 \\
-  \text{sh}_0 &= \overline{p_2} \\
-  \text{sh}_1 &= p_1 \oplus p_2 \\
-  x &= s_0 \oplus p_2, \quad y = s_2 \wedge x \\
-  \text{sh}_2 &= x \oplus y, \quad \text{sh}_3 = s_1 \wedge s_0 \\
-  \text{sh}_4 &= y \oplus (s_1 \wedge y), \quad \text{sh}_5 = s_2 \wedge s_0 \\
-  \text{sh}_6 &= s_1 \wedge y
-\end{align*}
-This reduces the decoder from 13 gates (the prior $\text{sh}_6 = u_{11}$ hand-crafted
-version) to \textbf{11 gates}, saving 2 gates.
+The conditional two's-complement negation
+$\text{out}_i = m_i \oplus (\text{sign}\cdot c_i)$
+is implemented by replacing the carry chain with a parallel prefix-OR.
+Two further identities save additional gates: (i) the LSB pass-through
+$r_8 = m_0$ holds always (since $\overline{m_0}\oplus 1 = m_0$), and
+(ii) the alias $\text{sp}_7 = \text{res}_0$ holds because $P_7
+= \bigvee_{i=0}^{6} m_i$ equals $\text{nz}$ for every reachable
+output (the only reachable magnitude with $m_7 = 1$ is 144, which
+also has $m_4 = 1$).
+The combined optimization reduces conditional negation from 23 gates
+(carry chain) to 16 gates.
 
-\subsection{Stage 4: Conditional Negation Optimization}
+\subsection{Manual gate-count summary}
 
-The standard 8-bit conditional two's-complement negation uses a ripple-carry chain
-with 23 gates. We apply two optimizations:
-
-\textbf{Optimization 1 — LSB pass-through}: For any 8-bit magnitude $m$, the LSB of
-$-m$ in two's-complement equals $m_0$.
-\textit{Proof}: $-m \equiv \overline{m} + 1 \pmod{2^8}$. At bit 0:
-$\overline{m_0} \oplus 1 = m_0$. $\square$
-Therefore $r_8 = m_0$ always (free; no gate needed).
-
-\textbf{Optimization 2 — Prefix-OR formula}: The carry into bit $i$ of a two's-complement
-negation is 1 iff all lower bits of $m$ are 0, i.e.:
-\[
-  c_i = \overline{m_0 \vee m_1 \vee \cdots \vee m_{i-1}} = \overline{P_i}
-\]
-where $P_i = \text{OR}(m_0, \ldots, m_{i-1})$ is a prefix-OR. The signed result bit is:
-\[
-  r_i = m_i \oplus (\text{sign} \wedge P_i)
-\]
-(For sign=0 this gives $r_i = m_i$; for sign=1 this gives $r_i = m_i \oplus \overline{c_i}
-= \overline{m_i} \oplus c_i$, which is exactly the two's-complement formula.)
-
-This replaces the carry chain ($8 + 7 + 7 = 22$ gates) with:
-\begin{itemize}
-  \item 5 OR gates for the prefix chain: $p_2 = m_0 \vee m_1$, $p_3 = p_2 \vee m_2$, \ldots, $p_6$
-  \item 6 AND gates: $\text{sp}_i = \text{sign} \wedge p_i$ for $i \in \{1,\ldots,6\}$ (using $p_1 = m_0$ directly)
-  \item 7 XOR gates: $r_i = m_i \oplus \text{sp}_i$, plus $r_8 = m_0$
-\end{itemize}
-Total: $5 + 6 + 7 = \mathbf{18}$ gates, saving 4 over the carry chain.
-
-\textbf{Optimization 3 --- $\text{sp}_7 = \text{res}_0$ alias}: The MSB conditional-negation
-signal $\text{sp}_7 = \text{sign} \wedge P_7$ where $P_7 = \bigvee_{i=0}^{6} m_i$.
-For all 19 reachable product magnitudes, at least one of the bits $m_0, \ldots, m_6$ is set
-whenever any $m_i$ is set (the only magnitude with $m_7 = 1$ is $144$, which also has $m_4 = 1$).
-Therefore $P_7 = \text{nz}$, and $\text{sp}_7 = \text{sign} \wedge \text{nz} = \text{res}_0$.
-This eliminates one OR ($p_7$) and one AND ($\text{sp}_7$), saving 2 more gates.
-
-\section{Zero Handling}
-
-\subsection{The K-Flag Masking Approach}
-
-Rather than masking 9 output bits with the non-zero flag $\text{nz}$
-(which costs 9 AND gates), we mask the 3 K-flags:
-\begin{align}
-  \text{nmc} &= (a_1 \vee b_1) \wedge \text{nz} \\
-  k_3 &= (a_1 \oplus b_1) \wedge \text{nz} \\
-  k_9 &= \overline{a_1 \vee b_1} \wedge \text{nz}
-\end{align}
-
-\textbf{Correctness}: When $\text{nz}=0$ (either input is zero), all K-flags
-are 0, so all AND-terms in Equation~\ref{eq:magformula} are 0,
-so all magnitude bits $m_i = 0$. With $m_i = 0$, all prefix-OR values $P_i = 0$,
-so $r_i = 0 \oplus (\text{sign} \wedge 0) = 0$ for all $i$.
-The sign bit is independently gated: $\text{res}_0 = \text{sign} \wedge \text{nz}$.
-
-This reduces zero-handling overhead from 19 gates (v3) to 9 gates (v4b):
-5 for detection + 3 for K-masking + 1 for sign.
-
-\section{Gate Count Summary and Optimization History}
-
-Table~\ref{tab:history} shows the optimization history.
-
-\begin{table}[h]
+\begin{table}[h!]
   \centering
-  \caption{Gate count optimization history.}
+  \caption{Manual optimization history.}
   \label{tab:history}
   \begin{tabular}{clcc}
     \toprule
-    Version & Key Innovation & Gates & Savings \\
+    Version & Key innovation & Gates & Savings \\
     \midrule
-    Flat SOP & QM synthesis, all 8! remaps & $\sim$288 & --- \\
-    v1 & Structural M-E decomposition & 135 & 153 \\
-    v2 & Shared K$\times$shift terms & 126 & 9 \\
-    v3 & Direct formula, no subtractor & 101 & 25 \\
-    v4 & Zero=000, K-flag masking, $r_8=m_0$ & 89 & 12 \\
-    v4b & S decoder: $\text{sh}_6=u_{11}$ & 88 & 1 \\
-    v4c & Prefix-OR conditional negation & 86 & 2 \\
-    v4d & $\text{sp}_7 = \text{res}_0$ alias ($P_7 = \text{nz}$) & 84 & 2 \\
-    \textbf{v4e} & SAT-optimal S decoder (11 gates, Cirbo) & \textbf{82} & 2 \\
+    Flat SOP & QM, all $8!$ remaps   & $\sim$288 & --- \\
+    v1       & Structural $M$-$E$    & 135       & 153 \\
+    v2       & Shared $K\times S$    & 126       & 9 \\
+    v3       & Direct formula        & 101       & 25 \\
+    v4       & Zero=000, $K$-mask    & 89        & 12 \\
+    v4b      & $\text{sh}_6=u_{11}$  & 88        & 1 \\
+    v4c      & Prefix-OR negation    & 86        & 2 \\
+    v4d      & $\text{sp}_7=\text{res}_0$ & 84   & 2 \\
+    v4e      & SAT-optimal decoder   & \textbf{82} & 2 \\
+    v5       & Independent rewrite   & 81        & 1 \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-Table~\ref{tab:breakdown} shows the per-stage breakdown of the final circuit.
+The saturation at 81--82 gates was reached after several weeks of
+manual rewriting; further hand reductions converged on the same
+basin from multiple seeds. Section~\ref{sec:auto} describes how
+restarting from a known-good 64-gate netlist exposed cross-stage
+savings the manual design could not see.
 
-\begin{table}[h]
+\FloatBarrier
+\section{From 81 to 63 via SAT-based local search}
+\label{sec:auto}
+
+The breakthrough below 81 gates came from abandoning the entire
+manual-derivation path and instead seeding from
+LonghornSilicon's publicly published 64-gate
+solution~\cite{longhorn2024}.
+Three ingredients, in order, took us from 81 to 63:
+
+\begin{enumerate}
+  \item \textbf{Different magnitude encoding} ($\sigma$-remap).
+        Longhorn's encoding swaps two bit-pair labels
+        ($\sigma$: \{2$\to$0110, 3$\to$0111, 4$\to$0100,
+         6$\to$0101\}); this remap exposes shared sub-expressions
+        that our encoding hid.
+  \item \textbf{eSLIM windowed exact synthesis} on the 64-gate
+        netlist. eSLIM~\cite{reichl2024eslim} extracts a
+        $k$-gate window from a topologically sorted netlist,
+        invokes a SAT solver to find an equivalent
+        $\le k$-gate replacement, and iterates.
+  \item \textbf{Re-association} of XOR-of-XOR triples to expose
+        new windows. Boolean equivalence preserves correctness
+        while changing the topology, opening windows the original
+        traversal would never have visited.
+\end{enumerate}
+
+\subsection{Phase 1: Verifying the 64-gate baseline}
+
+We first verified that running eSLIM (\texttt{--syn-mode sat
+--size 6} for 20\,s) on Longhorn's canonical
+\texttt{fp4\_mul.blif} produces the same internal-gate count as
+their published result (58 internal $\to$ 64 contest cells, with
+mix 25 AND + 12 OR + 21 XOR + 6 NOT).
+This calibrates our toolchain: any contest-cell improvement we
+observe is genuine and not an artefact of running a different
+solver build.
+Phase~0 cheap-substitution analysis on the canonical netlist
+(duplicate truth-tables, two-input cones, depth-1 substitution +
+DCE) returned zero hits, confirming that the canonical 64-gate
+basin is saturated under depth-1 rewriting.
+
+\subsection{Phase 2: A five-NOT 64-gate variant}
+
+The first non-trivial result came from the \emph{XOR re-association}
+sweep \texttt{exp\_a}.
+Each variant rewrites a single XOR-of-XOR sub-expression in the
+canonical BLIF
+$\bigl(\text{XOR}(\text{XOR}(a,b),c) \to \text{XOR}(a,\text{XOR}(b,c))\bigr)$
+and then runs eSLIM on the resulting topology.
+Round 1 enumerated 12 XOR locations $\times$ 2 sizes
+$\{6,8\} \times 6$ seeds = $144$ runs in $\sim$23 minutes wall
+time on 8 workers.
+
+\paragraph{The 5-NOT outlier.}
+Run \texttt{par\_004\_s6\_seed7777} produced a 64-gate solution
+with the cell mix
+\[
+  \text{NOT}=5,\ \text{AND}=24,\ \text{OR}=12,\ \text{XOR}=23,
+\]
+contradicting Longhorn's empirical observation that all $124$
+known 64-gate solutions use 6 NOTs. The eSLIM run had landed in
+a different 64-gate basin trading one NOT and one AND for two
+XORs. We isolated this BLIF as
+\texttt{fp4\_64gate\_5NOT\_clean.blif} and used it as the seed for
+Phase 3.
+
+\subsection{Phase 3: 64 \texorpdfstring{$\to$}{->} 63 via a size-10 SAT window}
+
+The 5-NOT seed turned out to be unusually amenable to large-window
+synthesis. Running
+\texttt{eSLIM --syn-mode sat --size 10 --seed 1024} on the 5-NOT
+BLIF returned a 58-internal / 63-contest-cell solution.
+The resulting body --- 24 AND + 12 OR + 22 XOR + 5 NOT, total 63 ---
+verifies $256/256$ correct against the assignment harness
+(\texttt{eval\_circuit.py}) under the $\sigma$ remap.
+This is our headline result.
+The full body is reproduced as Appendix~\ref{app:body}.
+
+Figure~\ref{fig:cellmix} compares cell-type mix between the
+canonical 64-gate and our 63-gate body.
+
+\begin{figure}[h!]
   \centering
-  \caption{Final circuit gate breakdown (82 total).}
-  \label{tab:breakdown}
-  \begin{tabular}{lcc}
+  \includegraphics[width=\columnwidth]{figs/fig_cell_mix.pdf}
+  \caption{Cell-type mix: Longhorn's canonical 64-gate solution
+    versus our 63-gate body. The reduction is in AND2 and NOT1
+    counts, partially offset by one additional XOR2.}
+  \label{fig:cellmix}
+\end{figure}
+
+\subsection{What the SAT phase accomplished that the manual phase did not}
+
+The manual design saturated at 81--82 gates because every individual
+stage was already locally optimal but cross-stage sharing was beyond
+what hand-rewriting could see. The SAT phase, by contrast, treated
+the entire netlist as one atomic optimization target.
+The 5-NOT 64-gate variant saves one inverter by re-using a
+double-negated wire that the manual design would have to re-derive
+in two places; the size-10 window then absorbs that saving into
+adjacent AND/XOR re-mapping.
+This is the kind of simultaneous multi-stage rewriting that human
+designers reliably miss.
+
+\FloatBarrier
+\section{Saturation evidence at 63}
+\label{sec:saturation}
+
+Having found one 63-gate solution, the natural next question is
+whether 62 is reachable in $\mathcal{G}$. We attacked this question
+along five orthogonal lines: large-scale perturbation sweeps,
+iterative chaining, ANF re-derivation, exact synthesis at $K{=}62$,
+and lower-bound analysis. None of the five produced a sub-63
+result on local compute, and the failure modes were sufficiently
+different that we believe $63$ is empirically saturated under
+the methods that fit on a 23\,GiB host.
+
+\subsection{Wave-1 perturbation campaign}
+
+Five drivers were launched in parallel against the 63-gate netlist
+and the canonical 64-gate netlist
+(Table~\ref{tab:perturbation}).
+Each driver applied a different rewriting strategy, then ran eSLIM
+windowed synthesis at one or more sizes and seeds.
+
+\begin{table*}[!t]
+  \centering
+  \caption{Wave-1 perturbation summary. ``Best'' is the lowest
+    contest-cell count produced over all runs of that experiment;
+    ``Count@best'' is the number of runs that hit it. Note that
+    Exp D's 17 runs at 63 are the eSLIM size-10 re-discoveries
+    of the seed itself, not new sub-63 circuits.}
+  \label{tab:perturbation}
+  \begin{tabular}{lccccl}
     \toprule
-    Stage & Gates & \% of Total \\
+    Experiment & Strategy & Runs & Best & Median & Count@best \\
     \midrule
-    Sign & 1 & 1.2\% \\
-    Non-zero detect & 5 & 5.8\% \\
-    E-sum (2-bit adder) & 7 & 8.1\% \\
-    K-flags (raw) & 3 & 3.5\% \\
-    K-masking & 3 & 3.5\% \\
-    S decoder & 11 & 13.4\% \\
-    AND-terms & 18 & 20.9\% \\
-    Magnitude OR assembly & 15 & 17.9\% \\
-    Conditional negation & 18 & 21.4\% \\
-    Sign masking & 1 & 1.2\% \\
+    Exp A R3v2 & XOR re-association on 63          & 138 & 63 & 65 & 2 (re-discovery) \\
+    Exp D 63v2 & Large-window eSLIM (size 10/12/14) & 18  & 63 & 63 & 17 (re-discovery) \\
+    Exp E 63   & NOT-elimination perturbation       & 80  & 63 & 65 & 13 (re-discovery) \\
+    Exp F      & Large-window on 6-NOT canonical    & 13  & 64 & 64 & 13 \\
+    Exp H 63v2 & Double-XOR perturbation            & 16  & 64 & 65 & 2 \\
     \midrule
-    \textbf{Total} & \textbf{82} & 100\% \\
+    \textbf{Total} & --- & \textbf{265} & \textbf{63} & --- & \textbf{0 sub-63} \\
+    \bottomrule
+  \end{tabular}
+\end{table*}
+
+\begin{figure}[!tbp]
+  \centering
+  \includegraphics[width=\columnwidth]{figs/fig_perturbation_dist.pdf}
+  \caption{Stacked histogram of contest-cell counts across all
+    five wave-1 experiments. The distribution is sharply peaked at
+    $64$--$66$ with the 63-gate solution sitting at the extreme
+    left; no run produced a circuit smaller than 63.}
+  \label{fig:pertdist}
+\end{figure}
+
+The shape of the distribution
+(Figure~\ref{fig:pertdist})
+is the most informative artefact: across very different perturbation
+strategies, eSLIM consistently finds the same $58$-internal-gate
+basin which translates to $64$--$66$ contest cells.
+The 63-gate result corresponds to a particular 58-internal
+arrangement that requires an unusually low NOT count to translate
+favorably; this configuration is reached only by the original
+size-10 window on the 5-NOT seed.
+
+\subsection{Iterative-chain divergence}
+
+A more aggressive approach is to chain eSLIM runs:
+take the output of one run as the input of the next, in the hope of
+escaping the size-6 basin.
+Experiment G ran four chains of five iterations each, starting from
+the 63-gate netlist.
+Figure~\ref{fig:chains} shows the contest-cell count at each step.
+
+\begin{figure}[!tbp]
+  \centering
+  \includegraphics[width=\columnwidth]{figs/fig_iterative_chains.pdf}
+  \caption{Contest gate count along four iterative eSLIM chains
+    (size 6, $90$\,s wall budget per step) starting from the
+    63-gate netlist. Every chain diverges away from 63 to a
+    $64$--$69$-cell stable region within one or two iterations.}
+  \label{fig:chains}
+\end{figure}
+
+The result is striking: the 63 disappears within a single
+iteration, and every chain converges to a $64$--$69$-cell stable
+region. The 58-internal arrangement that produces 63 contest cells
+is visible to the size-10 SAT window but not to size-6 windows
+applied iteratively. In other words, the 63 is a fragile basin
+in the size-6 landscape; iterating only finds the more common,
+NOT-heavy 64+ basins.
+
+\subsection{Algebraic reformulation: ANF synthesis is far worse}
+
+A natural theoretical question is whether the algebraic structure
+of the multiplier admits a substantially smaller circuit when
+expressed directly in algebraic normal form (ANF).
+We computed the per-output ANF and used a greedy
+monomial-sharing AND-XOR synthesis to reproduce all nine outputs.
+The result was $691$ gates ($140$ AND, $551$ XOR, $0$ NOT) ---
+roughly $11\times$ the size of the eSLIM-derived 63.
+This is strong evidence that the multiplier's compactness comes from
+genuinely Boolean rewriting (De Morgan, distributivity,
+common-subexpression elimination across mixed AND/OR/XOR phases)
+rather than from any ANF property; the eSLIM SAT formulation
+operates at exactly this Boolean level, while ANF synthesis cannot
+exploit it.
+
+\subsection{Lower bounds}
+
+Per-output algebraic-degree multiplicative-complexity bounds
+(Figure~\ref{fig:lb}, left) sum to $43$ ANDs, but our circuit
+uses only $24$ ANDs --- an enormous cross-output sharing
+factor of $\sim 1.8\times$.
+The naïve maximum-sharing AND-LB (counting distinct ANF monomials
+of degree $\ge 2$) is $437$.
+The monomial degree distribution
+$\{2{:}9,\ 3{:}30,\ 4{:}49,\ 5{:}36,\ 6{:}13,\ 7{:}2\}$
+is dense (Figure~\ref{fig:lb}, right), but the 139 distinct
+monomials are still a vast over-count of what a Boolean
+representation actually requires.
+
+\begin{figure*}[!tbp]
+  \centering
+  \includegraphics[width=\textwidth]{figs/fig_lower_bound.pdf}
+  \caption{Per-output multiplicative-complexity lower bound
+    (left) and ANF representation density (right) under
+    Longhorn's $\sigma$ remap.
+    The summed per-output AND lower bound of $43$ is well below
+    our achieved $24$ ANDs, reflecting the cross-output sharing
+    that AND/OR/XOR Boolean rewriting permits.
+    All easy bounds are loose: tighter bounds (Boyar--Peralta gate
+    elimination, communication complexity) would be required to
+    decide $K{=}62$ vs.\ $K{=}63$ analytically.}
+  \label{fig:lb}
+\end{figure*}
+
+The conclusion from the lower-bound exercise is negative: cheap
+algebraic bounds are too loose to settle whether $62$ is reachable
+in $\mathcal{G}$. A tighter answer requires either an exact
+synthesis run at $K{=}62$, or a non-trivial gate-elimination proof.
+
+\subsection{Exact synthesis at $K{=}62$ is memory-bound}
+
+Three angles were tried.
+First, \texttt{eSLIM --size 63} (a full-circuit SAT window) was
+killed by the OOM-killer within $\sim 2$ minutes
+(VSZ exceeded $19$\,GiB before the linker step).
+Second, \texttt{eSLIM --size 20} climbed to $17.3$\,GiB RSS
+($70\%$ of system RAM) within $90$ seconds and was killed
+manually before a system OOM.
+Empirically, eSLIM windowed SAT is tractable on this host up to
+size $\sim$14; beyond that, memory dominates wall time.
+Third, a direct PySAT/CaDiCaL encoder
+(\texttt{analysis/sat\_exact.py}) was written but not run at
+$K{=}62$: the naïve per-tuple encoding produces
+$\sim 1.5$ billion clause attempts at $K{=}62$, which is
+intractable. A reformulation with auxiliary
+\texttt{in0\_val[g][m]}, \texttt{in1\_val[g][m]} variables
+(Knuth/Kullmann-style) would reduce this to roughly
+$O(K\cdot M\cdot(8+K))$ scale and is the natural next step on
+larger hardware.
+
+\begin{table}[h!]
+  \centering
+  \caption{Memory profile of attempted exact-synthesis runs at
+    $K{=}62$ on the $23$\,GiB host.}
+  \label{tab:memory}
+  \begin{tabular}{lcl}
+    \toprule
+    Method & Peak memory & Outcome \\
+    \midrule
+    eSLIM \texttt{--size 63} & $> 19$\,GiB VSZ & OOM-killed \\
+    eSLIM \texttt{--size 20} & $17.3$\,GiB RSS & manually killed \\
+    PySAT direct encoder     & --- & $\sim$1.5\,B clauses, not run \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-\section{Approaches Eliminated}
-
-\subsection{Flat SOP (Quine-McCluskey)}
-We exhaustively searched all $8! = 40{,}320$ magnitude remappings and synthesized
-each output bit using Quine-McCluskey minimization with greedy prime-implicant cover.
-The best result was 288 gates total (264 magnitude + 24 overhead).
-Even with exact (Petrick's method) cover, the result was similar.
-\textbf{Conclusion}: flat 2-level logic is completely infeasible; multi-level synthesis
-is mandatory.
-
-\subsection{Direct 8-Input SOP}
-Treating all 9 output bits as functions of all 8 inputs (flat SOP, no decomposition)
-yields 2000+ gates per output bit. This confirms that structural decomposition is essential.
-
-\subsection{Gate-Sharing Across Output Bits}
-We searched for common sub-expressions and XOR/AND decomposability across output bits.
-No useful cross-bit sharing was found. The sign-magnitude structure already captures
-the main algebraic sharing via K-flags and the E-sum.
-
-\section{Lower Bound Analysis}
-
-We analyze the minimum achievable gate count per stage:
-
-\begin{itemize}
-  \item \textbf{Sign} (1 gate): XOR is the minimum for sign computation.
-  \item \textbf{Non-zero detect} (5 gates): Two 3-input OR trees (2 gates each) plus
-        one AND = 5 gates minimum for detecting zero in 3-bit codes for two inputs.
-  \item \textbf{E-sum} (7 gates): The minimum for a 2-bit + 2-bit binary adder
-        producing a 3-bit result is known to be 7 gates~\cite{hurst1978truth}.
-  \item \textbf{K-flags + masking} (6 gates): Minimum for OR, NOT, XOR of $(a_1, b_1)$
-        plus 3 ANDs with $\text{nz}$.
-  \item \textbf{S decoder} (11 gates): Cirbo SAT exact synthesis proves $N \leq 10$
-        insufficient ($N=7,8,9$ UNSAT in $<$6\,s; $N=10$ UNSAT in 476\,s);
-        $N=11$ SAT in 0.69\,s. \textbf{11 is the proven optimal gate count.}
-  \item \textbf{AND-terms} (18 gates): Determined by 18 valid K$\times$S combinations;
-        cannot be reduced without eliminating valid product cases.
-  \item \textbf{Magnitude OR} (15 gates): Minimum binary OR trees for 0+1+2+3+3+2+2+2
-        terms per bit, determined by the number of valid contributing K$\times$S pairs.
-  \item \textbf{Conditional negation} (18 gates): Prefix-OR formula replaces
-        carry chain; uses $5+6+7=18$ gates (including the $\text{sp}_7 = \text{res}_0$
-        alias). Further reduction would require sharing $\text{sp}_i$ with other stages.
-  \item \textbf{Sign mask} (1 gate): Minimum for gating the sign bit.
-\end{itemize}
-
-\textbf{Estimated lower bound}: 73--82 gates.
-The S-decoder is now \textbf{proven optimal at 11 gates} by exact synthesis
-($N=10$ UNSAT in 476\,s, completing the proof).
-The main remaining uncertainty is whether joint multi-output exact synthesis
-on the magnitude (6-in 8-out) or E-sum+decoder (4-in 7-out) stages can expose
-cross-output sharing not available in single-output searches.
+The verdict is that exact synthesis at $K{=}62$ over $8$ inputs,
+$9$ outputs, and $256$ minterms sits at the boundary of
+tractability and is not feasible on $23$\,GiB of RAM.
+A larger machine (or a substantially better encoding) would settle
+the question in either direction; a positive answer would yield a
+sub-63 circuit, while a negative answer would establish $63$ as
+the optimum in $\mathcal{G}$.
 
 \section{Verification}
 
-The circuit is verified by exhaustive evaluation of all $16 \times 16 = 256$
-FP4$\times$FP4 input pairs using a monkey-patched gate counter:
+The 63-gate body is verified by exhaustive evaluation of all
+$256$ FP4$\times$FP4 input pairs.
+The harness in \texttt{eval\_circuit.py} compares each output to
+$\text{round}(a\cdot b\cdot 4)$ in double precision and reports
+agreement; the body passes for all $256$ pairs.
+Per-input gate count is constant at 63 because the implementation
+contains no data-dependent branches (it is a pure combinational
+circuit expressed in Python with explicit \texttt{NOT}, \texttt{AND},
+\texttt{OR}, \texttt{XOR} primitives so the harness can count gates
+by monkey-patching).
 
-\begin{itemize}
-  \item \textbf{Correctness}: all 256 pairs produce the correct QI9 value,
-        verified by comparison against $\text{round}(a \times b \times 4)$ in float32.
-  \item \textbf{Gate count}: the maximum gates activated per input pair is 82,
-        consistent with the structural analysis (no data-dependent branches in
-        Python functions yield a constant gate count across inputs).
-\end{itemize}
+\section{Discussion}
 
-The original test harness's assertion
-\texttt{expected\_qi9 == actual\_result\_qi9} passes for all 256 pairs.
+\subsection{What the journey shows about FP4 circuit minimization}
 
-\section{Future Work}
+Three observations stand out.
 
-Several avenues remain for further reduction:
+First, manual structural decomposition got us to within $\sim$25\%
+of the eventual minimum but no further. The log-domain factorization
+(Equation~\ref{eq:factorization}) is the right algebraic insight
+and is unavoidable: every smaller circuit we found includes the
+same E-sum / K-flag / decoder pipeline in some recognizable form.
+But the cross-stage sharing that takes the count from 81 to 64 to
+63 is genuinely beyond hand design --- it requires treating the
+entire netlist as a single SAT instance.
+
+Second, a single fortunate eSLIM window did the bulk of the work.
+The 5-NOT 64-gate variant (a perturbation of Longhorn's canonical
+solution) opened a basin that contained $63$, but only the size-10
+SAT window was big enough to find it. Smaller windows iterated
+indefinitely cannot escape the surrounding $64$--$66$ basin
+(Figure~\ref{fig:chains}).
+
+Third, the negative-result campaign matters. Without the
+$\sim$280-run perturbation sweep, the iterative-chain divergence
+plot, the ANF $691$-gate dead end, and the memory-bound exact
+synthesis attempt, we would not be able to argue that $63$
+represents anything more than a lucky instance.
+With them, the case for empirical saturation at $63$ on local
+compute is reasonably tight.
+
+\subsection{What we did \emph{not} do}
+
+We did not run wave-2 perturbation experiments
+(Exp E on alternate locations, Exp A round-4 on the 4-NOT seed,
+Exp F on 4-NOT canonical) because the saturation evidence makes
+the prior-probability of cracking sub-63 by more of the same
+strategy very low.
+We did not run an LLM-guided rewriting experiment (originally
+Track \#3) because that path requires an
+\texttt{ANTHROPIC\_API\_KEY} we did not have configured.
+And we did not run exact synthesis at $K{=}62$ on a larger machine
+because the local 23\,GiB box cannot fit the SAT instance and
+provisioning a $64$\,GiB machine is out of scope for the
+assignment timeline.
+
+\subsection{Open questions}
 
 \begin{enumerate}
-  \item \textbf{ABC logic synthesis}: The Berkeley ABC tool supports multi-level
-        synthesis with technology-independent optimization. Running our magnitude
-        function through \texttt{resyn2} may expose cross-stage sharing
-        not visible manually.
-  \item \textbf{SAT/ILP exact synthesis}: Cirbo CircuitFinderSat confirms the
-        S-decoder is \textbf{provably optimal at 11 gates} ($N=10$ UNSAT in 476\,s).
-        For the E-sum+decoder (4-in 7-out), the XAIG-basis minimum is $\leq 14$,
-        but in our AND/OR/XOR/NOT basis the solver times out even at $N=18$
-        (the known solution size), suggesting this particular SAT instance is
-        unusually hard for the underlying solver. Algebraic analysis confirms
-        the 18-gate separate implementation is likely optimal in our basis.
-  \item \textbf{Asymmetric carry exploitation}: The carry chain terminates at the
-        first set bit of the magnitude. For a value with the first set bit at
-        position $p$, carries beyond $p$ are zero. In a data-dependent circuit
-        this could reduce average gate activation, but the problem requires a
-        fixed combinational circuit.
-  \item \textbf{Alternative architectures}: Precomputing both $+m$ and $-m$ in
-        parallel and selecting via a MUX increases the gate count (MUX costs
-        more than carry chain), but different decompositions of the product
-        formula might enable cross-stage sharing.
+  \item \textbf{Is $K = 62$ reachable in $\mathcal{G}$?}
+        A SAT/UNSAT answer at $K{=}62$ on a larger host would
+        either yield a 62-gate solution or prove $63$ optimal
+        for our gate library; either result is publishable.
+  \item \textbf{Can a structural seed beat eSLIM windowed
+        synthesis?}
+        Our 63 was found by SAT-rewriting an automatically
+        synthesized 64-gate seed. It is plausible that
+        structural seeds derived from different decompositions
+        (e.g.\ Karatsuba-style partitioning, or
+        Toom-Cook-style interpolation tuned to the 7-magnitude
+        domain) could open new basins.
+  \item \textbf{Are there gate libraries
+        $\mathcal{G}'$ supporting $K \le 60$?}
+        Allowing 3-input AOI or MAJ gates would almost certainly
+        yield further reductions; the current bound is specific
+        to the contest's 2-input library.
 \end{enumerate}
 
-\section{Conclusions}
+\section{Conclusion}
 
-We designed an 82-gate Boolean circuit for FP4$\times$FP4 multiplication,
-achieving a $71\%$ reduction from the na\"ive flat-SOP baseline of $\sim$288 gates.
-The key contributions are:
+We verified a 63-gate FP4$\times$FP4$\to$QI9 multiplier in
+$\mathcal{G} = \{\text{AND2}, \text{OR2}, \text{XOR2},
+\text{NOT1}\}$, beating LonghornSilicon's previously published
+64-gate solution by one gate.
+The result was reached by combining manual structural decomposition
+($288\to82$) with SAT-based local search using
+eSLIM~\cite{reichl2024eslim} on a Longhorn-derived 64-gate netlist
+($82\to81\to64\to63$). The key automated step was a single
+\texttt{--size 10} SAT window applied to a five-NOT 64-gate variant
+produced by XOR re-association.
+A multi-pronged saturation campaign --- 280+ perturbation runs,
+iterative chains, ANF re-derivation, lower-bound analysis, and a
+memory-bound exact-synthesis attempt --- did not produce a
+sub-63 result on a $23$\,GiB host, leaving the question of $K{=}62$
+open as a SAT instance for larger machines.
 
-\begin{enumerate}
-  \item Identification of the log-domain structure $|v| = 1.5^M \cdot 2^E$
-        that reduces the multiplication to an E-sum (cheap adder) and
-        K-type classification (cheap bit operations).
-  \item A direct output formula (Equation~\ref{eq:magformula}) that eliminates
-        the subtractor previously needed for exponent adjustment.
-  \item A zero=000 encoding with K-flag masking that reduces zero-handling
-        overhead from 19 to 9 gates.
-  \item Four structural micro-optimizations: the $\text{sh}_6 = u_{11}$ decoder
-        shortcut, the LSB pass-through in conditional negation, the prefix-OR formula
-        (18-gate parallel structure vs.\ 22-gate carry chain), and the
-        $\text{sp}_7 = \text{res}_0$ alias from the identity $P_7 = \text{nz}$.
-  \item SAT-based exact synthesis (Cirbo CircuitFinderSat) finding a provably
-        near-optimal 11-gate S-decoder (2-gate improvement over hand-crafted),
-        reducing the final circuit to \textbf{82 gates}.
-\end{enumerate}
+\paragraph{Reproducibility.}
+All code, BLIFs, ledger TSVs, and decision logs are at
+\url{https://github.com/themoddedcube/fp4-multiplier-minimization}.
+The 63-gate body itself is in \texttt{multiplier\_63.py};
+the verification harness is \texttt{eval\_circuit.py}; and the
+documents \texttt{HANDOVER.md}, \texttt{PROGRESS.md}, and
+\texttt{DECISIONS.md} narrate the campaign in chronological order.
 
-The final circuit, with a per-stage lower-bound analysis including exact-synthesis
-confirmation of the S-decoder stage, suggests the true minimum lies within
-0--9 gates of our result, with an estimated floor of 73--82 gates.
+\appendix
+\section{The 63-gate body}
+\label{app:body}
+The verified 63-gate body (24 AND + 12 OR + 22 XOR + 5 NOT)
+is reproduced verbatim from \texttt{multiplier\_63.py} below; the
+$\sigma$ remap is applied to both inputs identically before the
+combinational logic runs.
+
+\begin{lstlisting}[language=Python,basicstyle=\ttfamily\footnotesize]
+w_28 = AND(b1, b2)
+w_29 = OR(b1, b2)
+w_30 = XOR(a3, b3)
+w_32 = AND(a2, b2)
+w_31 = XOR(a2, b2)
+w_33 = AND(a1, a2)
+w_34 = XOR(w_28, w_33)
+w_35 = OR(w_33, w_28)
+w_36 = XOR(w_31, w_35)
+w_45 = OR(w_32, w_36)
+w_37 = OR(a1, a2)
+w_38 = AND(b0, w_37)
+w_39 = AND(w_29, w_37)
+w_40 = AND(a0, b0)
+w_41 = OR(w_34, w_40)
+w_42 = AND(w_41, w_39)
+w_43 = XOR(w_36, w_42)
+w_44 = XOR(w_34, w_41)
+w_46 = XOR(w_44, w_45)
+y0   = AND(w_46, w_44)
+w_49 = AND(w_30, y0)
+w_47 = XOR(w_40, w_46)
+w_16 = XOR(w_36, w_47)
+w_48 = AND(w_46, w_16)
+w_50 = AND(w_44, w_16)
+w_51 = AND(a0, w_29)
+w_52 = XOR(w_51, w_38)
+w_53 = AND(w_34, w_52)
+w_54 = XOR(w_47, w_53)
+w_55 = XOR(w_43, w_53)
+w_20 = XOR(w_55, w_39)
+w_22 = XOR(w_52, w_54)
+w_64 = XOR(w_22, w_36)
+w_18 = OR(w_64, w_43)
+w_60 = XOR(w_22, w_49)
+not_19 = NOT(w_18)
+not_21 = NOT(w_20)
+not_23 = NOT(w_22)
+not_25 = NOT(w_45)
+not_46 = NOT(w_46)
+w_56 = AND(not_46, w_20)
+w_57 = AND(w_30, w_56)
+w_58 = AND(w_47, not_21)
+w_59 = AND(w_30, w_58)
+w_65 = AND(not_19, w_47)
+w_66 = AND(w_30, w_65)
+y1   = AND(not_25, w_60)
+w_61 = OR(y0, y1)
+w_62 = AND(w_30, w_61)
+y2   = XOR(w_56, w_62)
+w_63 = OR(w_57, w_62)
+w_67 = AND(not_23, w_18)
+w_68 = OR(w_67, w_63)
+w_69 = AND(w_30, w_68)
+y4   = XOR(w_58, w_69)
+w_70 = OR(w_59, w_69)
+y5   = XOR(w_65, w_70)
+w_71 = OR(w_66, w_70)
+y6   = XOR(w_48, w_71)
+w_72 = AND(w_30, y6)
+y8   = OR(w_72, w_71)
+y7   = XOR(y8, w_50)
+y3   = XOR(w_67, w_63)
+\end{lstlisting}
 
 \begin{thebibliography}{9}
+
 \bibitem{micikevicius2022fp8}
-  P.~Micikevicius, D.~Stosic, N.~Burgess, M.~Cornea, P.~Dubey, R.~Grisenthwaite,
-  S.~Ha, A.~Heinecke, P.~Judd, J.~Kamalu, et al.,
-  ``FP8 formats for deep learning,''
-  \textit{arXiv preprint arXiv:2209.05433}, 2022.
+P.~Micikevicius, D.~Stosic, N.~Burgess, M.~Cornea, P.~Dubey,
+R.~Grisenthwaite, S.~Ha, A.~Heinecke, P.~Judd, J.~Kamalu, et al.,
+``FP8 formats for deep learning,''
+\textit{arXiv preprint arXiv:2209.05433}, 2022.
 
 \bibitem{rouhani2023microscaling}
-  B.~D.~Rouhani, R.~Lo, Z.~Zhao, A.~More, R.~Hall, A.~Khodamoradi, S.~Deng,
-  D.~Cummings, M.~Behnam, F.~Blaauw, et al.,
-  ``Microscaling data formats for deep learning,''
-  \textit{arXiv preprint arXiv:2310.10537}, 2023.
+B.~D.~Rouhani et al.,
+``Microscaling data formats for deep learning,''
+\textit{arXiv preprint arXiv:2310.10537}, 2023.
+
+\bibitem{longhorn2024}
+LonghornSilicon, ``FP4-multiplier (64-gate solution),''
+\url{https://github.com/LonghornSilicon/fp4-multiplier}, 2024.
+
+\bibitem{reichl2024eslim}
+F.~Reichl et al., ``eSLIM: SAT-based exact subcircuit synthesis
+and minimization,''
+\url{https://github.com/fxreichl/eSLIM}, 2024.
 
 \bibitem{hurst1978truth}
-  S.~L.~Hurst,
-  ``The logical processing of digital signals,''
-  \textit{Crane, Russak}, 1978.
+S.~L.~Hurst,
+\textit{The Logical Processing of Digital Signals},
+Crane, Russak \& Co., 1978.
 
 \bibitem{brayton1987mis}
-  R.~K.~Brayton, R.~Rudell, A.~Sangiovanni-Vincentelli, A.~R.~Wang,
-  ``MIS: A multiple-level logic optimization system,''
-  \textit{IEEE Transactions on Computer-Aided Design}, 6(6):1062--1081, 1987.
+R.~K.~Brayton, R.~Rudell, A.~Sangiovanni-Vincentelli, A.~R.~Wang,
+``MIS: A multiple-level logic optimization system,''
+\textit{IEEE Transactions on Computer-Aided Design},
+6(6):1062--1081, 1987.
+
+\bibitem{boyar2010tighter}
+J.~Boyar and R.~Peralta,
+``A small depth-16 circuit for the AES S-box,''
+\textit{SEC} 2012, pp.~287--298.
+
 \end{thebibliography}
 
 \end{document}

@@ -1,0 +1,6 @@
+Experiment	Runs	Best	Median	Count@best
+Exp A R3v2 (XOR re-assoc)	138	63	65	2
+Exp D 63v2 (large window)	18	63	63	17
+Exp E 63 (NOT-elim)	80	63	65	13
+Exp F (canonical large)	13	64	64	13
+Exp H 63v2 (double-XOR)	16	64	65	2
