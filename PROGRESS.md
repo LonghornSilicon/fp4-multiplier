@@ -182,3 +182,35 @@ Iterative eSLIM pyramid on M_low sigma ABC-optimized 103-gate BLIF.
 - The 63-gate result with longhorn sigma remains the current best.
 
 Next options if pursuing further: (a) K=62 SAT on ≥64 GiB host, (b) try random_99 or M3_low pyramid.
+
+## 2026-04-29 — random_99 sigma iterative eSLIM pipeline: COMPLETE
+
+**Result: 69 gates final (did not beat 63)**
+
+σ = [1.0, 3.0, 6.0, 0.5, 4.0, 2.0, 1.5] (random shuffle seed=99 of MAGS)
+Starting BLIF: /tmp/sigma_sweep_out/random_99_ds_out.blif (107 ABC gates)
+
+| Phase | Config | Seeds | Best contest gates |
+|---|---|---|---|
+| P1 | size=4, 120s | 8/8 | 70 (107→71→70) |
+| P2 | size=6, 180s | 8/8 | **69** (seed=99) |
+| P3 | size=8, 240s | 6/6 | 69 (no improvement) |
+| P4 | size=10, 300s | 5+/8 timed out | 69 (all size=10 runs exceed 300s budget) |
+
+**Final best: 69 gates** (/tmp/r99_work/P2_size6_s6_k99_gates.blif)
+
+**ABC rewriting results (Task #8 — also completed today):**
+Ran resyn2, resyn2x3, compress2, drwsat_dch, deepsyn on fp4_63gate_nobuf.blif and fp4_64gate_5NOT_clean.blif.
+Best: ABC deepsyn on 63-gate → 79 gates. ABC cannot beat the 63-gate result starting from scratch.
+
+**σ' sweep summary (Task #9 — completed today):**
+All 11 sigma candidates tested via ABC deepsyn + eSLIM pyramid on top 2:
+- M_low σ=[0.5,1,2,4,1.5,3,6]: 103 ABC → 78 eSLIM (saturated)
+- random_99 σ=[1,3,6,0.5,4,2,1.5]: 107 ABC → 69 eSLIM (saturated)
+- longhorn σ=[0.5,1,1.5,4,6,2,3]: 157 ABC → **63 eSLIM** (current record)
+
+**Interpretation:**
+- random_99 much better trajectory than M_low (69 vs 78), but still 6 above the record.
+- Size=10 SAT windows time out on 69-gate circuits on this 4-core ARM box.
+- The longhorn sigma remains uniquely good for eSLIM — its specific structure enables the size=10 SAT window to find 63.
+- Next step: K=62 SAT exact synthesis on ≥64 GiB machine (GCP Brev box being provisioned).
