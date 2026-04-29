@@ -23,8 +23,9 @@
 
 ## What's running at handover (may still be alive — check first)
 
-- `experiments_eslim/exp_a_parallel.py` — sweep at ~70/144 of 144 jobs. Output: `/tmp/exp_a_par.log`.
-- ~8 eSLIM workers in `/tmp/eSLIM/src/reduce.py` processes.
+- **Round 1 (almost done):** `experiments_eslim/exp_a_parallel.py` — sweep at 135/144 of 144 jobs. Output: `/tmp/exp_a_par.log`. Ledger: `experiments_eslim/exp_a_ledger.tsv`. ~8 min remaining.
+- **Round 2 (just launched, seeded from 5-NOT BLIF):** `experiments_eslim/exp_a_parallel.py --canonical experiments_eslim/fp4_64gate_5NOT_clean.blif` with 12 variants × 2 sizes × 8 seeds = 192 runs across 4 workers (4 to share with round-1 finishing). Output: `/tmp/exp_a_r2.log`. Ledger: `experiments_eslim/exp_a_round2_ledger.tsv`. ~72 min wall.
+- ~8-12 eSLIM workers in `/tmp/eSLIM/src/reduce.py` processes.
 
 **Check status before doing anything:**
 ```bash
