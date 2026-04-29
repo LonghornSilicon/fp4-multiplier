@@ -87,15 +87,23 @@ def main():
     ap.add_argument("--time-budget", type=int, default=90)
     ap.add_argument("--chains", type=int, default=8,
                     help="Number of independent chains to run (max 8)")
+    ap.add_argument("--canonical", default=str(SEED_BLIF))
+    ap.add_argument("--ledger-out", default=None)
     args = ap.parse_args()
 
-    print(f"Exp G: iterative eSLIM on {SEED_BLIF.name}")
-    inputs, outputs, gates = parse_gate_blif(SEED_BLIF)
+    seed_blif = Path(args.canonical)
+    if args.ledger_out:
+        global LEDGER
+        LEDGER = Path(args.ledger_out)
+
+    print(f"Exp G: iterative eSLIM on {seed_blif.name}")
+    inputs, outputs, gates = parse_gate_blif(seed_blif)
     base_count = len(gates)
     print(f"  baseline: {base_count} gates, size={args.size}, budget={args.time_budget}s")
 
-    flat_blif = WORK / "expg_5NOT_flat.blif"
-    flatten_blif(SEED_BLIF, flat_blif)
+    flat_stem = seed_blif.stem
+    flat_blif = WORK / f"expg_{flat_stem}_flat.blif"
+    flatten_blif(seed_blif, flat_blif)
     print(f"  flattened to {flat_blif}")
 
     chain_specs = CHAIN_SEEDS[:args.chains]

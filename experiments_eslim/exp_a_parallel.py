@@ -22,10 +22,12 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from exp_a_xor_reassoc import (
     parse_gate_blif, write_gate_blif, find_xor_xor_locations,
     reassoc_at, flatten_blif, run_eslim, translate_to_gates,
-    LONGHORN, ESLIM, WORK,
+    LONGHORN, ESLIM, WORK as _WORK_DEFAULT,
 )
 
 REPO = Path(__file__).resolve().parent.parent
+# WORK is overridden later after args are parsed (see main())
+WORK = _WORK_DEFAULT
 
 
 def _job(args_tuple):
@@ -65,7 +67,14 @@ def main():
                     default=str(LONGHORN / "src/fp4_mul.blif"))
     ap.add_argument("--ledger",
                     default=str(REPO / "experiments_eslim/exp_a_ledger.tsv"))
+    ap.add_argument("--workdir", default=None,
+                    help="Override scratch directory for BLIF files (default: /tmp/eslim_work)")
     args = ap.parse_args()
+
+    global WORK
+    if args.workdir:
+        WORK = Path(args.workdir)
+        WORK.mkdir(parents=True, exist_ok=True)
 
     print(f"Reading: {args.canonical}")
     inputs, outputs, gates = parse_gate_blif(Path(args.canonical))

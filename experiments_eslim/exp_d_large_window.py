@@ -57,18 +57,28 @@ def main():
     ap.add_argument("--seeds", type=int, nargs="+",
                     default=[1, 42, 7777, 13371337, 99, 1024, 31415, 2718])
     ap.add_argument("--time-budget", type=int, default=180)
+    ap.add_argument("--canonical", default=str(SEED_BLIF))
+    ap.add_argument("--ledger-out", default=None)
     args = ap.parse_args()
 
-    print(f"Exp D: large-window eSLIM on {SEED_BLIF.name}")
-    inputs, outputs, gates = parse_gate_blif(SEED_BLIF)
+    seed_blif = Path(args.canonical)
+    if args.ledger_out:
+        global LEDGER
+        LEDGER = Path(args.ledger_out)
+
+    print(f"Exp D: large-window eSLIM on {seed_blif.name}")
+    inputs, outputs, gates = parse_gate_blif(seed_blif)
     base_count = len(gates)
     print(f"  baseline: {base_count} gates")
 
-    print(f"  Flattening to {FLAT_BLIF}...")
-    flatten_blif(SEED_BLIF, FLAT_BLIF)
+    flat_name = f"expd_{seed_blif.stem}_flat.blif"
+    flat_blif_path = WORK / flat_name
+    print(f"  Flattening to {flat_blif_path}...")
+    flatten_blif(seed_blif, flat_blif_path)
+    FLAT_BLIF_USED = flat_blif_path
     print(f"  Done.")
 
-    jobs = [(s, seed, str(FLAT_BLIF), tuple(inputs), tuple(outputs), args.time_budget)
+    jobs = [(s, seed, str(FLAT_BLIF_USED), tuple(inputs), tuple(outputs), args.time_budget)
             for s in args.sizes for seed in args.seeds]
     print(f"  {len(jobs)} jobs × {args.workers} workers, budget={args.time_budget}s")
     print(f"  est. wall: {len(jobs) * args.time_budget / args.workers:.0f}s")

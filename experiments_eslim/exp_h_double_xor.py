@@ -66,10 +66,17 @@ def main():
                     help="How many outer locs to iterate over")
     ap.add_argument("--inner-locs", type=int, default=4,
                     help="How many inner locs to apply per outer result")
+    ap.add_argument("--canonical", default=str(SEED_BLIF))
+    ap.add_argument("--ledger-out", default=None)
     args = ap.parse_args()
 
-    print(f"Exp H: double XOR re-association on {SEED_BLIF.name}")
-    inputs, outputs, gates = parse_gate_blif(SEED_BLIF)
+    seed_blif = Path(args.canonical)
+    if args.ledger_out:
+        global LEDGER
+        LEDGER = Path(args.ledger_out)
+
+    print(f"Exp H: double XOR re-association on {seed_blif.name}")
+    inputs, outputs, gates = parse_gate_blif(seed_blif)
     base_count = len(gates)
     all_locs = find_xor_xor_locations(gates)
     print(f"  baseline: {base_count} gates, {len(all_locs)} XOR-XOR locs")
