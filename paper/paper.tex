@@ -563,6 +563,63 @@ rather than from any ANF property; the eSLIM SAT formulation
 operates at exactly this Boolean level, while ANF synthesis cannot
 exploit it.
 
+\subsection{Alternative $\sigma$ remaps saturate above 63}
+\label{sec:sigma-sweep}
+
+A different but related question is whether Longhorn's specific
+$\sigma$ remap is essential, or whether \emph{any} reasonable
+permutation of the seven FP4 magnitude codes admits a comparable
+solution. We swept $11$ candidate remaps, including
+two magnitude-grouped variants (\texttt{M\_low} grouping powers of
+two together; \texttt{M3\_low} grouping the three smallest
+magnitudes), three label-swap perturbations of Longhorn's encoding,
+three pseudorandom permutations, and a baseline ``identity''
+ordering. Each candidate's circuit was re-synthesised by
+ABC~\cite{abc} \texttt{deepsyn} (mapped to
+$\mathcal{G}$) and the resulting BLIF was fed through an
+eSLIM pyramid (size $4 \to 6 \to 8 \to 10$) for $\sim$$1$\,h.
+
+\begin{table}[h!]
+  \centering
+  \caption{Selected $\sigma$ remaps: ABC \texttt{deepsyn}-mapped
+    gate count and best contest-cell count after the eSLIM pyramid.
+    ABC reduces logic complexity but does not preserve
+    eSLIM-friendly structure; conversely Longhorn's $\sigma$ has
+    high ABC mapped count but uniquely admits a 63-gate eSLIM
+    solution.}
+  \label{tab:sigma}
+  \begin{tabular}{lccc}
+    \toprule
+    $\sigma$ remap & ABC mapped & eSLIM best & Status \\
+    \midrule
+    \texttt{M\_low}        & 103 & 78 & saturated \\
+    \texttt{random\_99}    & 107 & 69 & saturated \\
+    \texttt{longhorn}      & 157 & \textbf{63} & current best \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+The two $\sigma$ candidates with the smallest ABC-mapped circuits
+(\texttt{M\_low} at $103$ gates, \texttt{random\_99} at $107$)
+saturate at $78$ and $69$ contest cells respectively, six and
+fifteen gates above the headline result. ABC's gate-level
+optimisation is therefore not the bottleneck: a smaller mapped
+circuit does not translate into a smaller eSLIM-rewritten circuit.
+The Longhorn $\sigma$ is uniquely placed in our sample because
+its mapped representation, although larger, sits in a basin where
+the eSLIM \texttt{--size 10} window can find the 63-gate
+solution. Among the $11$ remaps tested, this is the only one to
+reach $63$.
+
+A complementary check is to apply ABC re-synthesis directly to the
+63-gate netlist itself: \texttt{deepsyn} on
+\texttt{fp4\_63gate\_nobuf.blif} returns a $79$-gate circuit, more
+than $25\%$ larger than the input. ABC's standard re-synthesis
+flows, in other words, cannot recover (let alone beat) the eSLIM
+result from the 63-gate body alone. This is consistent with the
+observation that the 63 corresponds to a particular SAT-discovered
+sharing pattern that ABC's heuristic rewriters do not search.
+
 \subsection{Lower bounds}
 
 Per-output algebraic-degree multiplicative-complexity bounds
@@ -859,6 +916,12 @@ R.~K.~Brayton, R.~Rudell, A.~Sangiovanni-Vincentelli, A.~R.~Wang,
 J.~Boyar and R.~Peralta,
 ``A small depth-16 circuit for the AES S-box,''
 \textit{SEC} 2012, pp.~287--298.
+
+\bibitem{abc}
+A.~Mishchenko et al.,
+``ABC: A System for Sequential Synthesis and Verification,''
+Berkeley Logic Synthesis and Verification Group,
+\url{https://github.com/berkeley-abc/abc}.
 
 \end{thebibliography}
 
