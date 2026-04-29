@@ -119,3 +119,66 @@ This 5-NOT BLIF is a high-value seed for Round 2 perturbation:
 ---
 
 (no prior entries — this is the first PROGRESS.md write.)
+
+## 2026-04-29 — σ' sweep via ABC + M_low eSLIM trial
+
+**ABC resyn2 sweep (all 11 σ candidates, AIG node count after resyn2):**
+
+| σ | AIG nodes (resyn2) |
+|---|---|
+| swap_pair_a | 209 |
+| M_low = bit2_M | 211 |
+| random_99 | 218 |
+| random_7 | 245 |
+| random_42 | 250 |
+| swap_pair_c | 250 |
+| sequential | 254 |
+| M3_low | 259 |
+| longhorn | 271 |
+| swap_pair_b | 272 |
+
+**ABC deepsyn (T=5 I=4) mapped contest-gate sweep:**
+
+| σ | gates | AND | OR | XOR | NOT |
+|---|---|---|---|---|---|
+| M_low / bit2_M | 103 | 42 | 30 | 7 | 24 |
+| random_99 | 107 | 45 | 33 | 7 | 22 |
+| M3_low | 112 | 56 | 33 | 7 | 16 |
+| swap_pair_a | 130 | 55 | 37 | 6 | 32 |
+| swap_pair_b | 147 | 61 | 48 | 9 | 29 |
+| random_42 | 150 | 67 | 48 | 6 | 29 |
+| sequential | 152 | 59 | 53 | 8 | 32 |
+| longhorn | 157 | 66 | 48 | 5 | 38 |
+| swap_pair_c | 161 | 72 | 55 | 8 | 26 |
+| random_7 | 187 | 79 | 63 | 11 | 34 |
+
+Key finding: M_low sigma ([0.5,1.0,2.0,4.0,1.5,3.0,6.0]) gives 103 vs longhorn's 157 mapped gates — 34% reduction in logic complexity.
+M_low groups powers-of-2 magnitudes in codes 1–4, 1.5× magnitudes in codes 5–7.
+
+**eSLIM trial on M_low 103-gate ABC circuit:** launched 2026-04-29 ~09:06 UTC.
+Configs: (size=10/12/8, seeds=1024/42/7777/31415), 300s each, /tmp/exp_m_low.log.
+
+## 2026-04-29 — M_low sigma iterative eSLIM pipeline: COMPLETE
+
+**Result: 78 gates final (did not beat 63)**
+
+Iterative eSLIM pyramid on M_low sigma ABC-optimized 103-gate BLIF.
+σ = [0.5, 1.0, 2.0, 4.0, 1.5, 3.0, 6.0] (powers-of-2 in codes 1-4; 1.5× in codes 5-7)
+
+| Phase | Config | Seeds | Best contest gates |
+|---|---|---|---|
+| P1 | size=4, 120s | 8/8 | 78 (from 103: 103→83→79→78) |
+| P2 | size=6, 180s | 8/8 | 78 (no improvement) |
+| P3 | size=8, 240s | 6/6 | 78 (no improvement) |
+| P4 | size=10, 300s | 2/8 succeeded | 78 (6 timed out, 1 got 79, 1 got 78) |
+
+**Final best: 78 gates** (/tmp/mlow_work/P1_size4_s4_k2718_gates.blif)
+
+**Interpretation:**
+- M_low reduces from ABC-mapped 103 to eSLIM 78 (vs longhorn: 64-gate with eSLIM from similar ABC output).
+- The M_low basin saturates at 78 — not competitive with longhorn's 63.
+- Phase 4 size=10 mostly times out on a 78-gate circuit (too large for 300s budget on this ARM box).
+- Conclusion: M_low sigma has lower ABC complexity but a harder eSLIM landscape than longhorn sigma.
+- The 63-gate result with longhorn sigma remains the current best.
+
+Next options if pursuing further: (a) K=62 SAT on ≥64 GiB host, (b) try random_99 or M3_low pyramid.
