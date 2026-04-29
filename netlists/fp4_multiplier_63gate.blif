@@ -1,0 +1,67 @@
+.model fp4_mult
+.inputs a3 a2 a1 a0 b3 b2 b1 b0
+.outputs y0 y1 y2 y3 y4 y5 y6 y7 y8
+.gate AND2 A=b2 B=b1 O=w_28
+.gate OR2  A=b2 B=b1 O=w_29
+.gate XOR2 A=a0 B=b0 O=w_30
+.gate XOR2 A=a1 B=b1 O=w_31
+.gate AND2 A=a1 B=b1 O=w_32
+.gate AND2 A=a2 B=a1 O=w_33
+.gate XOR2 A=w_28 B=w_33 O=w_34
+.gate OR2  A=w_33 B=w_28 O=w_35
+.gate XOR2 A=w_31 B=w_35 O=w_36
+.gate OR2  A=a2 B=a1 O=w_37
+.gate AND2 A=b3 B=w_37 O=w_38
+.gate AND2 A=w_29 B=w_37 O=w_39
+.gate AND2 A=a3 B=b3 O=w_40
+.gate OR2  A=w_34 B=w_40 O=w_41
+.gate AND2 A=w_41 B=w_39 O=w_42
+.gate XOR2 A=w_36 B=w_42 O=w_43
+.gate XOR2 A=w_34 B=w_41 O=w_44
+.gate OR2  A=w_32 B=w_36 O=w_45
+.gate XOR2 A=w_44 B=w_45 O=w_46
+.gate XOR2 A=w_40 B=w_46 O=w_47
+.gate XOR2 A=w_36 B=w_47 O=w_16
+.gate AND2 A=w_46 B=w_44 O=y0
+.gate AND2 A=w_46 B=w_16 O=w_48
+.gate AND2 A=w_30 B=y0  O=w_49
+.gate AND2 A=w_44 B=w_16 O=w_50
+.gate AND2 A=a3 B=w_29 O=w_51
+.gate XOR2 A=w_51 B=w_38 O=w_52
+.gate AND2 A=w_34 B=w_52 O=w_53
+.gate XOR2 A=w_47 B=w_53 O=w_54
+.gate XOR2 A=w_43 B=w_53 O=w_55
+.gate XOR2 A=w_55 B=w_39 O=w_20
+.gate XOR2 A=w_52 B=w_54 O=w_22
+.gate XOR2 A=w_22 B=w_36 O=w_64
+.gate OR2  A=w_64 B=w_43 O=w_18
+.gate XOR2 A=w_22 B=w_49 O=w_60
+.gate NOT1 A=w_18 O=not_19
+.gate NOT1 A=w_20 O=not_21
+.gate NOT1 A=w_22 O=not_23
+.gate NOT1 A=w_45 O=not_25
+.gate NOT1 A=w_46 O=not_46
+.gate AND2 A=not_46 B=w_20 O=w_56
+.gate AND2 A=w_30 B=w_56 O=w_57
+.gate AND2 A=w_47 B=not_21 O=w_58
+.gate AND2 A=w_30 B=w_58 O=w_59
+.gate AND2 A=not_19 B=w_47 O=w_65
+.gate AND2 A=w_30 B=w_65 O=w_66
+.gate AND2 A=not_25 B=w_60 O=y1
+.gate OR2  A=y0 B=y1 O=w_61
+.gate AND2 A=w_30 B=w_61 O=w_62
+.gate XOR2 A=w_56 B=w_62 O=y2
+.gate OR2  A=w_57 B=w_62 O=w_63
+.gate AND2 A=not_23 B=w_18 O=w_67
+.gate OR2  A=w_67 B=w_63 O=w_68
+.gate AND2 A=w_30 B=w_68 O=w_69
+.gate XOR2 A=w_67 B=w_63 O=y3
+.gate XOR2 A=w_58 B=w_69 O=y4
+.gate OR2  A=w_59 B=w_69 O=w_70
+.gate XOR2 A=w_65 B=w_70 O=y5
+.gate OR2  A=w_66 B=w_70 O=w_71
+.gate XOR2 A=w_48 B=w_71 O=y6
+.gate AND2 A=w_30 B=y6  O=w_72
+.gate OR2  A=w_72 B=w_71 O=y8
+.gate XOR2 A=y8 B=w_50 O=y7
+.end
