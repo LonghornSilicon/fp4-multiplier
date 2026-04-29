@@ -1,0 +1,17 @@
+ts	size	seed	init_internal	final_internal	contest_cells	ok
+20:49:11	10	42	None	None	?	FAIL
+20:49:11	10	1	None	None	?	FAIL
+20:49:11	10	7777	None	None	?	FAIL
+20:49:12	10	13371337	None	None	?	FAIL
+20:49:12	10	1024	None	None	?	FAIL
+20:49:12	10	99	None	None	?	FAIL
+20:49:12	10	31415	None	None	?	FAIL
+20:49:13	12	1	None	None	?	FAIL
+20:49:13	10	2718	None	None	?	FAIL
+20:49:13	12	7777	None	None	?	FAIL
+20:49:13	12	42	None	None	?	FAIL
+20:49:13	12	99	None	None	?	FAIL
+20:49:14	12	13371337	None	None	?	FAIL
+20:49:14	12	1024	None	None	?	FAIL
+20:49:14	12	31415	None	None	?	FAIL
+20:49:14	12	2718	None	None	?	FAIL
