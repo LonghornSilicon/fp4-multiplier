@@ -4,6 +4,43 @@ Append-only running log of work sessions on the FP4 multiplier project. Most rec
 
 ---
 
+## 2026-04-29 (early morning) — Resume after reboot, sub-63 search wave
+
+**Context:** New session resuming on machine `/home/ubuntu/fp4-multiplier-minimization` (different host than prior `/mnt/c/...` path). System had been rebooted; `/tmp/eSLIM`, `/tmp/longhorn`, and Python deps (`pybind11`, `bitarray`) were wiped. All prior background experiments had exited with FAIL entries because eSLIM was missing.
+
+**Setup work**
+
+- Reverified `multiplier_63.py` → 256/256 CORRECT, 63 gates. Current best is intact.
+- Reinstalled `pybind11` and `bitarray` via `python3 -m pip install --user`. (`cirbo` is not on PyPI; it was only needed for Exp B/C cone search, not this wave.)
+- Re-cloned LonghornSilicon's `fp4-multiplier` repo to `/tmp/longhorn/fp4-multiplier/` (matching the path hardcoded in `experiments_eslim/exp_a_xor_reassoc.py`).
+- Re-cloned eSLIM from `https://github.com/fxreichl/eSLIM` to `/tmp/eSLIM`. Initial cmake configure failed (`Could NOT find pybind11`); fixed by passing `-Dpybind11_DIR=$(python3 -c "import pybind11; print(pybind11.get_cmake_dir())")`. Build produced all three `.so` modules: `aiger`, `cadical`, `relationSynthesiser`.
+- Recreated scratch dirs `/tmp/eslim_work{,2,3}`.
+
+**Resource constraints (different from prior session)**
+
+- 4 CPU cores (prior session reported 12); 23 GiB RAM, 0 swap. Plan must be sized for ~4-6 simultaneous eSLIM workers max.
+
+**Wave 1 launched** (5 driver scripts in parallel, --workers 1 each ≈ 5-6 eSLIM processes competing for 4 cores):
+
+| Driver | Canonical seed | Sizes | Seeds | Jobs | Nominal wall (1 worker) |
+|---|---|---|---|---|---|
+| `exp_a_parallel.py` (R3v2) | `fp4_63gate_nobuf.blif` | 6, 8 | 8 | 192 | ~4.8 h |
+| `exp_d_large_window.py` (63v2) | `fp4_63gate_nobuf.blif` | 10, 12, 14 | 8 | 24 | ~1.6 h |
+| `exp_e_not_elim.py` (63) | `fp4_63gate_nobuf.blif` | 6, 8 | 8 | 80 | ~2.7 h |
+| `exp_f_canon_large.py` | `/tmp/longhorn/.../fp4_mul.blif` (6-NOT canonical) | 10, 12 | 8 | 16 | ~1.1 h |
+| `exp_h_double_xor.py` (63v2) | `fp4_63gate_nobuf.blif` | 6 | 2 | 16 | ~20 min |
+
+Logs: `/tmp/exp_a_r3v2.log`, `/tmp/exp_d_63v2.log`, `/tmp/exp_e_63.log`, `/tmp/exp_f.log`, `/tmp/exp_h_63v2.log`.
+Ledgers: `experiments_eslim/{exp_a_round3v2,exp_d_63v2,exp_e_63gate,exp_f,exp_h_63gate_v2}_ledger.tsv`.
+
+A bash Monitor task is armed checking the contest_cells column (second-to-last) of every ledger every 30s for any value in `[30, 63)`. The first false-positive Monitor matched the `final_internal` column instead — re-armed correctly.
+
+**Early ledger snapshot (~5 min in)**: contest cells are clustering at 64-66 across all five drivers; one 63 already (exp_d 63v2, expected — re-discovers the starting basin). No sub-63 yet.
+
+**Paper-writing target (new):** User confirmed these notes will eventually feed `https://github.com/K-Dense-AI/claude-scientific-writer`. Push commits periodically; preserve negative results and methodology rationale in PROGRESS/DECISIONS for the eventual paper.
+
+---
+
 ## 2026-04-28 (afternoon → evening) — Pivot to LonghornSilicon 64-gate approach
 
 **Session summary**

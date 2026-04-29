@@ -36,7 +36,30 @@ Found by Exp D (size=10, seed=1024) on `fp4_64gate_5NOT_clean.blif`.
 ps aux | grep reduce.py | grep -v grep | wc -l
 ```
 
-If ≥2, experiments are active. Expected active processes:
+If ≥2, experiments are active.
+
+### Active wave (launched 2026-04-29 ~02:48 UTC, host /home/ubuntu)
+
+After a reboot wiped `/tmp` (eSLIM, Longhorn repo, all prior bg jobs), rebuilt eSLIM at `/tmp/eSLIM`, re-cloned Longhorn at `/tmp/longhorn/fp4-multiplier`, then launched 5 drivers in parallel with `--workers 1` each. Machine has **4 cores, 23 GiB RAM, no swap**.
+
+| Log | Script | Canonical | Jobs | Nominal wall |
+|-----|--------|-----------|------|--------------|
+| `/tmp/exp_a_r3v2.log` | exp_a_parallel | fp4_63gate_nobuf.blif | 192 | ~4.8 h |
+| `/tmp/exp_d_63v2.log` | exp_d_large_window (sizes 10,12,14) | fp4_63gate_nobuf.blif | 24 | ~1.6 h |
+| `/tmp/exp_e_63.log` | exp_e_not_elim | fp4_63gate_nobuf.blif | 80 | ~2.7 h |
+| `/tmp/exp_f.log` | exp_f_canon_large (sizes 10,12) | /tmp/longhorn/.../fp4_mul.blif (6-NOT) | 16 | ~1.1 h |
+| `/tmp/exp_h_63v2.log` | exp_h_double_xor (scoped down) | fp4_63gate_nobuf.blif | 16 | ~20 min |
+
+**Total: ~5-6 eSLIM processes competing for 4 cores. All time-bounded.**
+
+**Why each one:**
+- Exp A R3v2: never re-tried after the prior `/tmp` wipe. XOR-of-XOR re-association from 63-gate basin.
+- Exp D 63v2: the size=10/12/14 large window that originally found 63 from the 5-NOT 64-gate; never re-applied to the 63-gate itself with these sizes.
+- Exp E on 63: NOT-elimination on 63-gate has 5 NOT-AND patterns; produces 4-NOT 63-gate variants for eSLIM to re-attack.
+- Exp F: large window (10, 12) on the original Longhorn 6-NOT canonical — never tried (Longhorn capped at size 6).
+- Exp H: double XOR re-assoc on 63-gate; orthogonal perturbation surface.
+
+### Prior wave (still listed for reference; processes long since exited)
 
 | Log | Script | Canonical | Workers | Status |
 |-----|--------|-----------|---------|--------|
@@ -49,17 +72,24 @@ If ≥2, experiments are active. Expected active processes:
 | `/tmp/exp_h_63gate.log` | exp_h_double_xor | fp4_63gate_nobuf.blif | 2 | 0/256, just launched |
 | `/tmp/exp_g_63gate.log` | exp_g_iterative | fp4_63gate_nobuf.blif | 2 | 0/8 chains, just launched |
 
-**Total: ~19 eSLIM processes competing for 12 cores. All time-bounded.**
+Of those, FAIL counts in the ledgers tell the story: anything with size ≥ 10 mostly returned `?` because the eSLIM `.so` files were missing from `/tmp` post-reboot.
 
 ## Check for sub-63 results quickly
 
+Generic scan (works for all ledgers; contest_cells is the second-to-last column in every schema):
+
 ```bash
-grep "contest=[0-5][0-9]\b\|contest=6[0-2]" /tmp/exp_a_r3.log /tmp/exp_d_63gate.log /tmp/exp_g_63gate.log /tmp/exp_h_63gate.log 2>/dev/null
+for f in experiments_eslim/*_ledger*.tsv; do
+  awk -F'\t' -v fn="$f" 'NR>1 {nf=NF; cc=$(nf-1);
+    if (cc ~ /^[0-9]+$/ && cc+0 < 63 && cc+0 >= 30)
+      print "SUB63 " fn ": " $0}' "$f"
+done
 ```
 
-Or scan ledgers:
+Or for the active wave specifically:
+
 ```bash
-awk -F'\t' '$7 < 63 && $7 != "?" {print FILENAME, $0}' experiments_eslim/exp_a_round3_ledger.tsv experiments_eslim/exp_d_63gate_ledger.tsv experiments_eslim/exp_g_63gate_ledger.tsv experiments_eslim/exp_h_63gate_ledger.tsv 2>/dev/null
+grep -E "contest_cells=6[0-2]|contest_cells=[1-5][0-9]\b" /tmp/exp_*.log 2>/dev/null
 ```
 
 ## If sub-63 is found
@@ -143,6 +173,40 @@ PYTHONPATH=/tmp/eSLIM/src/bindings/build python3 /tmp/eSLIM/src/reduce.py \
 
 ## Git state
 
-Last commit: `c8c7edc` (Update HANDOVER: round 1 done, round 2 + exp_c in flight).
-Need to commit: `multiplier_63.py`, all new BLIF files, all new experiment scripts, updated HANDOVER.md.
+Last commit on master before this session: `d187da6` ("Launch Round 3 + Exps D/E/G/H from 63-gate and 4-NOT basins; add BUF-free BLIFs").
 GitHub auth note: HTTPS not configured; use `git push git@github.com:...` via SSH.
+
+## Toolchain rebuild after `/tmp` wipe
+
+If `/tmp/eSLIM` or `/tmp/longhorn` is missing:
+
+```bash
+# Python deps
+python3 -m pip install --user pybind11 bitarray
+
+# Longhorn repo (path matters — scripts hardcode /tmp/longhorn/fp4-multiplier)
+mkdir -p /tmp/longhorn && cd /tmp/longhorn
+git clone --depth 1 https://github.com/LonghornSilicon/fp4-multiplier.git
+
+# eSLIM with submodules
+cd /tmp && git clone --depth 1 https://github.com/fxreichl/eSLIM.git
+cd /tmp/eSLIM && git submodule update --init --recursive --depth 1
+cd src/bindings
+cmake -B build -Dpybind11_DIR=$(python3 -c "import pybind11; print(pybind11.get_cmake_dir())")
+cmake --build build -j 4
+
+# Verify all 3 .so files exist:
+ls /tmp/eSLIM/src/bindings/build/{aiger,cadical,relationSynthesiser}.cpython-310-aarch64-linux-gnu.so
+
+# Recreate scratch dirs
+mkdir -p /tmp/eslim_work /tmp/eslim_work2 /tmp/eslim_work3
+```
+
+## Paper writing target
+
+Notes in PROGRESS.md, DECISIONS.md, this file, and CONTEXT.md will eventually feed
+`https://github.com/K-Dense-AI/claude-scientific-writer` for a paper. Keep methodology
+rationale, negative results, and search trajectory entries detailed enough that a
+future writer can reconstruct the story (81 → 64 → 63 progression, why eSLIM SAT mode
+beats AIG mode, why 5-NOT was a breakthrough vs Longhorn's "all 64-gate have 6 NOT"
+empirical claim, etc.).

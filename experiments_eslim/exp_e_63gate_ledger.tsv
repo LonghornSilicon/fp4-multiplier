@@ -1,0 +1,5 @@
+ts	variant	size	seed	init_internal	final_internal	contest_cells	ok
+02:49:18	nelim0_w_46	6	1	63	58	65	OK
+02:51:19	nelim0_w_46	6	42	63	58	65	OK
+02:53:19	nelim0_w_46	6	7777	63	58	64	OK
+02:55:20	nelim0_w_46	6	13371337	63	58	65	OK
