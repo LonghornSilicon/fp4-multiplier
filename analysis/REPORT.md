@@ -50,13 +50,27 @@ generic monomial sharing cannot reach.
 ANF representation. This re-validates the eSLIM-based approach but tells us
 the perturbation set must be richer than XOR-re-association alone.
 
-## #1 — SAT k=62 attempt (in progress)
+## #1 — SAT k=62 attempt (memory-bound on this 23 GiB system)
 
-eSLIM `--size 63` (full-circuit window) on `fp4_63gate_nobuf.blif`,
-budget 600s. If it returns a 62-gate netlist, that's the headline result.
-If it returns 63 (no improvement) within budget, we have empirical evidence
-that 63 is at least *eSLIM-stable* under full-circuit SAT improvement.
-True UNSAT proof would require a custom encoder.
+Three angles tried:
+
+1. **eSLIM `--size 63` (full-circuit window)** — OOM-killed within ~2 min
+   (process VSZ exceeded 19 GiB before linker step).
+2. **eSLIM `--size 20`** — climbed to 17.3 GiB RSS (70% of system RAM)
+   within ~90 s, killed by us before system OOM.
+   Empirical limit on this system: eSLIM windowed SAT is tractable up to
+   ~size 14; beyond that, memory dominates wall time.
+3. **Direct SAT encoder (`analysis/sat_exact.py`, PySAT/CaDiCaL)** — written but
+   not run at K=62. Naive encoding emits clauses on every (g, m, s0, s1, kind)
+   tuple → ~1.5 B clause attempts at K=62, intractable. Would need reformulation
+   with auxiliary `in0_val[g][m]` / `in1_val[g][m]` variables (Knuth/Kullmann-style)
+   to reduce to ~O(K · M · (8+K)) scale. Encoder kept in repo as scaffold for
+   future runs on a larger machine.
+
+**Verdict:** SAT-based exact synthesis at K=62 over 8 inputs / 9 outputs / 256
+minterms is at the edge of tractability and not feasible on a 23 GiB machine.
+Either rent a bigger box or settle for the empirical "63 is sticky across
+all perturbation methods we tried" evidence.
 
 ## #4 — Iterative perturbation chains (Exp G, in progress)
 
