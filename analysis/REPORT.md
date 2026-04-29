@@ -72,11 +72,21 @@ minterms is at the edge of tractability and not feasible on a 23 GiB machine.
 Either rent a bigger box or settle for the empirical "63 is sticky across
 all perturbation methods we tried" evidence.
 
-## #4 — Iterative perturbation chains (Exp G, in progress)
+## #4 — Iterative perturbation chains (Exp G, done)
 
 4 chains × 5 iterations × size=6 × 90s/iter from `fp4_63gate_nobuf.blif`.
-Each chain: eSLIM → output → eSLIM(output) → ... 5 deep. Tests whether
-compound (multi-hop) basin transitions reach sub-63 where single-hop doesn't.
+Each chain: eSLIM → output → eSLIM(output) → ... 5 deep.
+
+**Result: 20 runs, contest distribution {64:3, 65:3, 66:5, 67:5, 69:4}.
+Zero sub-63 and zero =63.** Every iteration converged to a 58-internal-gate
+basin which translates to 64-69 contest cells. Iterating doesn't escape, and
+in fact even loses the original 63 (the 63 corresponds to a particular 58-
+internal arrangement that small-window iteration doesn't preserve).
+
+**Implication:** the 63-gate result is *fragile* in the eSLIM size-6 landscape.
+It was found by a single lucky size=10 SAT window on the 5-NOT 64-gate seed.
+Re-discovering it in different starting topologies has roughly the same
+probability as the original discovery — and we've spent ~300 runs trying.
 
 ## #3 — LLM-guided rewriting (queued)
 
