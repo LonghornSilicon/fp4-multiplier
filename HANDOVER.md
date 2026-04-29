@@ -23,9 +23,11 @@
 
 ## What's running at handover (may still be alive — check first)
 
-- **Round 1 (almost done):** `experiments_eslim/exp_a_parallel.py` — sweep at 135/144 of 144 jobs. Output: `/tmp/exp_a_par.log`. Ledger: `experiments_eslim/exp_a_ledger.tsv`. ~8 min remaining.
-- **Round 2 (just launched, seeded from 5-NOT BLIF):** `experiments_eslim/exp_a_parallel.py --canonical experiments_eslim/fp4_64gate_5NOT_clean.blif` with 12 variants × 2 sizes × 8 seeds = 192 runs across 4 workers (4 to share with round-1 finishing). Output: `/tmp/exp_a_r2.log`. Ledger: `experiments_eslim/exp_a_round2_ledger.tsv`. ~72 min wall.
-- ~8-12 eSLIM workers in `/tmp/eSLIM/src/reduce.py` processes.
+- **Round 1 ✅ FINISHED** (1365s wall): 144 jobs, 100 BLIFs translated, 20 64-cell variants found, 1 with 5 NOTs (the verified `fp4_64gate_5NOT_clean.blif`). No sub-64. Ledger: `experiments_eslim/exp_a_ledger.tsv`.
+- **Round 2 in flight** seeded from `experiments_eslim/fp4_64gate_5NOT_clean.blif`: 192 jobs × 4 workers, ~70 min wall remaining at handover. Output: `/tmp/exp_a_r2.log`. Ledger: `experiments_eslim/exp_a_round2_ledger.tsv`. Currently at ~8/192.
+- **Experiment C in flight** (Cirbo SAT on 9-in/8-out conditional negate at G=8..14): pushes the ≥11 lower bound that Longhorn timed out on. Output: `/tmp/exp_c.log`. Single-threaded.
+
+To check: `ps aux | grep -E "exp_a_par|reduce.py|exp_c" | grep -v grep | wc -l` should be ≥ 5.
 
 **Check status before doing anything:**
 ```bash
