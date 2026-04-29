@@ -5,3 +5,13 @@ ts	variant	size	seed	init_internal	final_internal	contest_cells	ok
 02:53:16	dxor_o0_i1	6	7777	64	59	66	OK
 02:54:32	dxor_o1_i0	6	1	65	58	66	OK
 02:55:50	dxor_o1_i0	6	7777	65	59	65	OK
+02:57:06	dxor_o1_i1	6	1	65	59	66	OK
+02:58:22	dxor_o1_i1	6	7777	65	58	67	OK
+02:59:39	dxor_o2_i0	6	1	64	58	65	OK
+03:00:54	dxor_o2_i0	6	7777	64	58	65	OK
+03:02:10	dxor_o2_i1	6	1	65	58	64	OK
+03:03:28	dxor_o2_i1	6	7777	65	59	65	OK
+03:04:45	dxor_o3_i0	6	1	64	58	66	OK
+03:06:02	dxor_o3_i0	6	7777	64	58	65	OK
+03:07:17	dxor_o3_i1	6	1	65	59	66	OK
+03:08:32	dxor_o3_i1	6	7777	65	58	66	OK
