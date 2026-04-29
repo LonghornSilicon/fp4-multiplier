@@ -19,7 +19,7 @@
 - Phase 1 toolchain installed: `eSLIM` at `/tmp/eSLIM/src/bindings/build/`, `cirbo` via pip, `cmake`/`pybind11`/`bitarray` via pip --break-system-packages.
 - Phase 4: `LONGHORN_DEEP_EXPLAINER.md` (~430 lines) written.
 - Cirbo lower-bound runs (Experiment B): 6-NOT bundle from primary inputs is ≥10 gates.
-- **🎯 Found a 5-NOT 64-gate solution at `/tmp/eslim_work/par_004_s6_seed7777_gates.blif`** — first known. Contradicts Longhorn's "all 124 solutions have 6 NOTs" claim.
+- **🎯 VERIFIED 5-NOT 64-gate solution** at `experiments_eslim/fp4_64gate_5NOT.blif` — 256/256 correct, breakdown `5 NOT + 24 AND + 12 OR + 23 XOR = 64`. Contradicts Longhorn's "all 124 solutions have 6 NOTs" claim.
 
 ## What's running at handover (may still be alive — check first)
 
@@ -36,20 +36,24 @@ If still running, let it finish (~10 more min). If dead, examine `experiments_es
 
 ## EXACT next steps (priority order)
 
-1. **Fix `experiments_eslim/blif_verify.py`** — currently fails on BLIFs that contain `.names X Y\n1 1` BUF alias lines. Extend `parse_gate_blif` to also parse those as identity gates (X aliases to Y, no gate cost). The 5-NOT 64-gate BLIF (`/tmp/eslim_work/par_004_s6_seed7777_gates.blif`) has these.
+1. **DONE** ✅ — Fixed `blif_verify.py`, verified 5-NOT 64-gate BLIF passes 256/256. Pushed commit `0edda3d`.
 
-2. **Verify the 5-NOT 64-gate BLIF**:
-   ```bash
-   python3 experiments_eslim/blif_verify.py /tmp/eslim_work/par_004_s6_seed7777_gates.blif
-   ```
-   Expected: 64 contest cells, 256/256 correct. If correct, commit + push immediately.
+2. **Round 2 perturbation seeded by the 5-NOT BLIF** (highest EV):
+   - Add a `--canonical` argument support to `experiments_eslim/exp_a_parallel.py` (pretty sure it already accepts one, but verify).
+   - Run with broader seed sweep starting from `experiments_eslim/fp4_64gate_5NOT.blif`:
+     ```bash
+     python3 experiments_eslim/exp_a_parallel.py \
+       --canonical experiments_eslim/fp4_64gate_5NOT.blif \
+       --time-budget 120 --sizes 6 8 10 \
+       --seeds 1 42 7777 13371337 99 1024 31415 2718 \
+       --max-variants 12 --workers 8 \
+       --ledger experiments_eslim/exp_a_round2_ledger.tsv
+     ```
+   - Then run `python3 experiments_eslim/analyze_results.py` (modify it to scan `par2_*` or new pattern) to look for any 4-NOT or sub-64 BLIF.
 
-3. **Round 2 perturbation** seeded by the 5-NOT BLIF:
-   - Modify `experiments_eslim/exp_a2_pair_perturb.py` (or write `exp_a3.py`) to read the 5-NOT BLIF as the canonical input instead of `/tmp/longhorn/fp4-multiplier/src/fp4_mul.blif`.
-   - Run with broader seed sweep (12 seeds × 3 sizes = 36 runs/variant).
-   - Look for any contest <64 OR a 4-NOT 64-gate variant.
+3. **Experiment C** if no breakthrough: Cirbo SAT on the conditional-negate sub-block. Lower bound currently ≥11; if tightened to =11, locks down 64.
 
-4. **Then Experiment C** if no breakthrough: Cirbo SAT on the conditional-negate sub-block with tighter cone definition. Lower bound currently ≥11; if tightened to =11, it locks down 64.
+4. **Long-shot**: Modify eSLIM to ban the existing NOT signals as inputs to ANDs (force ANDN-via-XOR rewrite) and re-run on the canonical. May produce more 5-NOT or 4-NOT basins.
 
 ## Key file paths
 
