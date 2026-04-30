@@ -1,18 +1,18 @@
-# Canonical FP4 Multiplier — 64 Gates
+# Canonical FP4 Multiplier — 63 Gates
 
-Best verified FP4 multiplier netlist: **64 gates** over the contest gate library {AND2, OR2, XOR2, NOT1}, each = 1 unit. Verified correct on all 256 input pairs.
+Best verified FP4 multiplier netlist: **63 gates** over the contest gate library {AND2, OR2, XOR2, NOT1}, each = 1 unit. Verified correct on all 256 input pairs.
 
 ## Result
 
 | Metric | Value |
 |---|---|
-| **Total gate count** | **64** |
-| AND2 | 25 |
+| **Total gate count** | **63** |
+| AND2 | 24 |
 | OR2 | 12 |
-| XOR2 | 21 |
-| NOT1 | 6 |
+| XOR2 | 22 |
+| NOT1 | 5 |
 | Verified on all 256 input pairs | OK |
-| Synthesis flow | yosys → ABC `&deepsyn` (→ 74) → eSLIM `--syn-mode sat` (→ 70) → eSLIM `--syn-mode sat --size 8` (→ 65) → gate-neutral XOR re-association + eSLIM `seed=7777` (→ 64) → re-map to {AND2,OR2,XOR2,NOT1} |
+| Synthesis flow | yosys → ABC `&deepsyn` (→ 74) → eSLIM `--syn-mode sat` (→ 70) → eSLIM `--syn-mode sat --size 8` (→ 65) → gate-neutral XOR re-association + eSLIM `seed=7777` (→ 64) → wider sweep finds 5-NOT 64-gate variant → eSLIM `--syn-mode sat --size 10 --seed 1024` (→ **63**) |
 
 ## Trajectory
 
@@ -27,9 +27,10 @@ Best verified FP4 multiplier netlist: **64 gates** over the contest gate library
 | mut11 raw P_nonzero direct-route Y[8] | 74 |
 | eSLIM SAT-based local improvement (size 6) | 70 |
 | eSLIM SAT-based local improvement (size 8) on the 70-gate result | 65 |
-| **Gate-neutral XOR re-association + eSLIM `--size 8 --seed 7777`** | **64** |
+| Gate-neutral XOR re-association + eSLIM `--size 8 --seed 7777` | 64 |
+| **Wider seed sweep finds 5-NOT 64-gate; eSLIM `--size 10 --seed 1024`** | **63** |
 
-6.09× reduction from naive PLA baseline.
+6.19× reduction from naive PLA baseline.
 
 ## Input Remap sigma = (0,1,2,3,6,7,4,5)
 
@@ -46,6 +47,21 @@ Sign-symmetric (sign at MSB), magnitude permutation:
 | 0110 | +2 | | 1110 | -2 |
 | 0111 | +3 | | 1111 | -3 |
 
+## How the 64→63 reduction was achieved (2026-04-29, GCP n2d-highmem-8)
+
+The Phase B saturation evidence at 64 (20+ distinct 64-gate solutions, all 6-NOT) was correct *for the search budget used at the time*, but a wider sweep — 12 XOR-of-XOR locations × 2 sizes (6, 8) × 6 seeds × 60 s — produced an outlier on `par_004_s6_seed7777`: a **5-NOT 64-gate variant** with cell mix `5 NOT + 24 AND + 12 OR + 23 XOR`. This contradicts the prior "all known 64-gate solutions have 6 NOTs" empirical signature; the eSLIM run had landed in a basin trading one NOT and one AND for two XORs.
+
+We isolated the variant as `fp4_64gate_5NOT.blif` and used it as the seed for a single larger-window run:
+
+```
+eSLIM --syn-mode sat --size 10 --seed 1024  on  fp4_64gate_5NOT.blif
+       → 63-gate solution: 5 NOT + 24 AND + 12 OR + 22 XOR
+```
+
+The size-10 SAT window is what does the work: it absorbs the inverter saving from the 5-NOT seed into adjacent AND/XOR re-mapping, picking up one more gate beyond the size-6/8 windows that produced the 5-NOT variant in the first place. The size-10 budget was tractable on the 5-NOT seed but had not been routinely applied during the original campaign because the earlier saturation evidence at 64 was strong.
+
+A follow-up saturation campaign at 63 — 280+ perturbation runs across XOR re-association, large-window direct, NOT-elimination, double-XOR re-association, and iterative chains; 11 alternative σ remaps; ABC `deepsyn` re-synthesis — produced no sub-63 result. ABC `deepsyn` applied directly to the 63-gate netlist returns a 79-gate circuit (i.e. ABC's heuristic flows cannot reproduce or beat the 63 from the 63-gate body alone). A K=62 SAT exact-synthesis run on a 64 GiB host is in progress to settle optimality formally.
+
 ## How the 65→64 reduction was achieved
 
 After 28+ eSLIM SAT configurations converged at 65 gates from the canonical 65-gate netlist, the unlock was **gate-neutrally perturbing the topology before the eSLIM call**. `workspace/eslim_runs/gen_variants.py` rewrites `XOR(XOR(a,b),c) → XOR(a,XOR(b,c))` at chosen wire locations — a gate-count-neutral move that hands eSLIM a structurally different starting AIG.
@@ -61,7 +77,9 @@ Same eSLIM tool ([SAT 2024 paper](https://drops.dagstuhl.de/entities/document/10
 ## Files
 
 - `fp4_mul.v` — Verilog source (mut11 form, used as the input via ABC's deepsyn)
-- `fp4_mul.blif` — final **64-gate** BLIF netlist (post-eSLIM + retranslation)
+- `fp4_mul.blif` — final **63-gate** BLIF netlist (post-eSLIM size-10 SAT window on the 5-NOT 64-gate variant)
+- `fp4_mul.py` — Python translation of the 63-gate BLIF (notebook-ready)
+- `fp4_mul.blif.64gate_backup` — prior 64-gate canonical (the post-eSLIM size-8 result), preserved for reference
 - `fp4_mul.blif.65gate_backup` — prior 65-gate canonical, preserved for reference
 - `contest.lib` — Liberty: AND2/OR2/XOR2/NOT1 area=1 each
 - `synth.ys` — yosys script that produced the intermediate 74-gate BLIF
@@ -76,4 +94,6 @@ cd src && yosys synth.ys  # produces 74-gate BLIF (deterministic)
 
 The 70-gate result requires running eSLIM on the 74-gate flat BLIF (`--syn-mode sat`, default size 6, 240 s).
 The 65-gate result requires eSLIM with `--size 8` on the 70-gate flat BLIF for 900 s.
-The **64-gate** canonical: generate the `v2_assocA_w_75` gate-neutral variant via `workspace/eslim_runs/gen_variants.py`, then run eSLIM `--syn-mode sat --size 8 --seed 7777` for 900 s. See `experiments_external/eslim/README.md` for build and run instructions.
+The 64-gate canonical: generate the `v2_assocA_w_75` gate-neutral variant via `workspace/eslim_runs/gen_variants.py`, then run eSLIM `--syn-mode sat --size 8 --seed 7777` for 900 s.
+
+The **63-gate** canonical: from the 64-gate BLIF, run a wider XOR-re-association sweep (`exp_a_parallel`: 12 locations × sizes 6/8 × 6 seeds × 60 s budget) to find the 5-NOT 64-gate outlier (originally `par_004_s6_seed7777_gates.blif`), then run eSLIM `--syn-mode sat --size 10 --seed 1024` on that variant for ~120 s. See `experiments_external/eslim/README.md` for build and run instructions.

@@ -1,20 +1,20 @@
-# FP4 Multiplier — 64 Gates
+# FP4 Multiplier — 63 Gates
 
 A minimum-gate hardware multiplier for the **MX-FP4 (E2M1)** floating-point format. Takes two 4-bit FP4 numbers, outputs `4·a·b` as a 9-bit two's-complement integer (the "QI9" accumulator format). Built for Etched's take-home challenge — the design and tricks are directly transferable to Longhorn Silicon's tape-out.
 
 ## Result
 
-**64 gates** in the contest gate library `{AND2, OR2, XOR2, NOT1}` (each = 1 unit). Verified correct on all 256 input pairs.
+**63 gates** in the contest gate library `{AND2, OR2, XOR2, NOT1}` (each = 1 unit). Verified correct on all 256 input pairs.
 
 | Cell type | Count |
 |:---|---:|
-| AND2 | 25 |
+| AND2 | 24 |
 | OR2 | 12 |
-| XOR2 | 21 |
-| NOT1 | 6 |
-| **Total** | **64** |
+| XOR2 | 22 |
+| NOT1 | 5 |
+| **Total** | **63** |
 
-**6.09× reduction from the naive PLA→ABC baseline (390 gates).** **24.7% reduction from the prior published-style baseline (~85 gates).** **-1 from the prior session's 65-gate canonical** via a structural-rewrite path the previous campaign hadn't explored.
+**6.19× reduction from the naive PLA→ABC baseline (390 gates).** **−1 from the prior 64-gate canonical** via a 5-NOT 64-gate intermediate that the original campaign's "all 124 known 64-gate solutions have exactly 6 NOTs" empirical signature had ruled out. The 64-gate body is preserved at [`src/fp4_mul.blif.64gate_backup`](./src/fp4_mul.blif.64gate_backup) and [`submission/colab_paste.py.64gate_backup`](./submission/colab_paste.py.64gate_backup).
 
 ### How the −1 was found (2026-04-27 04:56 UTC, 28-vCPU VPS campaign)
 
@@ -30,6 +30,28 @@ The previous campaign tried 28+ eSLIM configurations on the canonical 65 directl
 
 Re-running eSLIM (`--syn-mode sat --size 8 --seed 7777`, 900s budget) on this gate-neutral variant converged to a **different 58-internal-gate solution** with only **6 distinct ANDN inverter sources** instead of the canonical's 7.
 
+### How the −1 (64 → 63) was found (2026-04-29, GCP n2d-highmem-8)
+
+The 64-gate canonical's empirical 6-NOT signature had been the most consistent finding of the prior campaign — all 124 known 64-gate solutions used exactly 6 NOTs. We re-applied the same gate-neutral XOR re-association idea, but with a wider seed/size sweep and eSLIM's `--size 10` window.
+
+```
+exp_a_parallel: 12 XOR-of-XOR locations × 2 sizes (6, 8) × 6 seeds = 144 runs
+                eSLIM --syn-mode sat, 60s budget per run, 8 workers
+```
+
+Run `par_004_s6_seed7777` produced an outlier: **64 contest gates with the cell mix `5 NOT + 24 AND + 12 OR + 23 XOR`** — a **5-NOT** 64-gate variant. eSLIM had landed in a basin trading one NOT and one AND for two XORs, rather than the canonical's 6-NOT / 25-AND / 21-XOR mix. We isolated this BLIF as `fp4_64gate_5NOT.blif`.
+
+Using the 5-NOT variant as the seed for a larger-window run:
+
+```
+eSLIM --syn-mode sat --size 10 --seed 1024  on  fp4_64gate_5NOT.blif
+       → 63-gate solution: 5 NOT + 24 AND + 12 OR + 22 XOR.
+```
+
+The size-10 SAT window absorbs the inverter saving into adjacent AND/XOR re-mapping, picking up one more gate beyond the size-6 windows that produced the 5-NOT variant in the first place.
+
+A follow-up saturation campaign — 280+ perturbation runs across five experiment classes (XOR re-association, large-window direct, NOT-elimination, double-XOR re-association, iterative chains), 11 alternative σ remaps, and ABC `deepsyn` re-synthesis — produced no sub-63 result. ABC `deepsyn` applied directly to the 63-gate netlist returns a 79-gate circuit (i.e. standard ABC flows cannot reproduce, let alone beat, the 63 from the 63-gate body alone). A K=62 SAT exact-synthesis attempt (CaDiCaL on a 250 M-clause encoding, 21 K vars) was kicked off on a 64 GiB host — separate file in this branch — to either return UNSAT (proving 63 optimal in the gate library) or produce a 62-gate witness.
+
 ### Trajectory
 
 | Stage | Gates | Win |
@@ -43,7 +65,8 @@ Re-running eSLIM (`--syn-mode sat --size 8 --seed 7777`, 900s budget) on this ga
 | + mut11 raw P_nonzero direct-route for Y[8] | 74 | bypasses long below-chain for sign output |
 | + eSLIM SAT-mode windowed local improvement | 70 | SAT-proven minimal sub-circuit replacements |
 | + eSLIM SAT `--size 8` re-applied on the 70-gate result | 65 | larger SAT window finds non-local replacements |
-| + **gate-neutral XOR re-association + eSLIM `seed=7777`** | **64** | exposed eSLIM to a 6-NOT convergence basin |
+| + gate-neutral XOR re-association + eSLIM `seed=7777` | 64 | exposed eSLIM to a 6-NOT convergence basin |
+| + **5-NOT 64-gate variant + eSLIM `--size 10 --seed 1024`** | **63** | larger SAT window absorbs the inverter saving into adjacent AND/XOR re-mapping |
 
 ## Submission to Etched
 
@@ -76,17 +99,19 @@ Highest-EV remaining lever: AlphaEvolve-style frontier-LLM mutation loop (propos
 ├── SUMMARY.md — concise "what we accomplished" report
 ├── MEMORY.md — chronological research journal (resume-ready for future Claude sessions)
 │
-├── src/ — the canonical 64-gate solution
+├── src/ — the canonical 63-gate solution
 │ ├── fp4_mul.v — Verilog source (mut11 form: NAND-chain "below" detector + raw P_nonzero)
-│ ├── fp4_mul.blif — final 64-gate BLIF (post eSLIM + topology perturbation)
-│ ├── fp4_mul.py — Python translation of the BLIF (notebook-ready)
+│ ├── fp4_mul.blif — final 63-gate BLIF (eSLIM size-10 SAT window on the 5-NOT 64-gate variant)
+│ ├── fp4_mul.py — Python translation of the 63-gate BLIF (notebook-ready)
+│ ├── fp4_mul.blif.64gate_backup — prior 64-gate canonical, preserved for reference
 │ ├── fp4_mul.blif.65gate_backup — prior 65-gate canonical, preserved for reference
 │ ├── contest.lib — Liberty file: AND2/OR2/XOR2/NOT1 area=1 each
 │ ├── synth.ys — yosys synthesis script (produces the 74-gate BLIF; eSLIM takes it from there)
 │ └── README.md — provenance + reproduction
 │
 ├── submission/ — Etched Colab paste blocks (verified 256/256 on the official notebook)
-│ ├── colab_paste.py — INPUT_REMAP dict + write_your_multiplier_here function
+│ ├── colab_paste.py — INPUT_REMAP dict + write_your_multiplier_here function (63-gate body)
+│ ├── colab_paste.py.64gate_backup — prior 64-gate version, preserved for reference
 │ └── README.md — paste instructions
 │
 ├── lib/ — Python library (verifier, generators, synth pipelines, search drivers)
@@ -150,17 +175,19 @@ cd lib && python3 cirbo_subblocks.py shift # K-shift
 | + mut11 raw P_nonzero direct-route for Y[8] | 74 | bypasses long below-chain for sign output |
 | + eSLIM SAT-based windowed local improvement (`--syn-mode sat`) | 70 | SAT-proven minimal sub-circuit replacements; XOR-aware |
 | + eSLIM SAT `--size 8` windows on the 70-gate result | 65 | larger SAT window finds non-local replacements ABC's heuristics miss |
-| + **gate-neutral XOR re-association + eSLIM `seed=7777`** | **64** | exposed eSLIM to a 6-NOT convergence basin |
+| + gate-neutral XOR re-association + eSLIM `seed=7777` | 64 | exposed eSLIM to a 6-NOT convergence basin |
+| + **5-NOT 64-gate variant + eSLIM `--size 10 --seed 1024`** | **63** | larger SAT window absorbs the inverter saving into adjacent AND/XOR re-mapping |
 
 ## Optimality argument (in brief)
 
 - **Provable lower bounds (Cirbo SAT):** 2×2 unsigned mul = 7 gates exact (G=6 UNSAT, G=7 SAT). Y[8] = 7 exact. K computation ≥ 8. K-shift ≥ 13. Conditional negate ≥ 11. Sum of provable sub-block lower bounds (no sharing): ≥ 47.
 - **ABC `&deepsyn` fixed-point at 74:** re-feeding the 74-gate BLIF through ABC's full pipeline returns 74 deterministically. Saturated for ABC's heuristic optimizer.
 - **eSLIM SAT mode reached 65** via SAT-proven windowed replacements (with `--syn-mode sat` to preserve XOR2 in the basis). 28+ configurations on the canonical 65-gate netlist all returned 65 — saturation evidence.
-- **Gate-neutral topology perturbation reached 64.** Rewriting `XOR(XOR(a,b),c) → XOR(a,XOR(b,c))` at chosen wires changes the AIG without changing the gate count, then eSLIM converges to a different fixed point with one fewer NOT. **124 distinct 64-gate solutions found** across 600+ configurations, all with the same 6-NOT signature.
+- **Gate-neutral topology perturbation reached 64.** Rewriting `XOR(XOR(a,b),c) → XOR(a,XOR(b,c))` at chosen wires changes the AIG without changing the gate count, then eSLIM converges to a different fixed point with one fewer NOT. **124 distinct 64-gate solutions found** across 600+ configurations, all with the same 6-NOT signature — a basin invariant that originally suggested 64 was the global minimum.
+- **A wider seed sweep (2026-04-29) broke the 6-NOT invariant** and produced a 5-NOT 64-gate variant; the size-10 SAT window on that variant reached 63. The original 70%-confidence claim about 64 being the global minimum was therefore an overestimate, driven by a basin-locality artefact rather than a structural bound.
 - **Y[0] minimum proven = 4 gates** (`(m_a AND m_b) AND NOT(eh_a OR eh_b)`) by Cirbo SAT.
 
-Honest assessment: ~70% confidence 64 is the global minimum. Full reasoning at [`docs/lower-bounds.md`](./docs/lower-bounds.md).
+Updated assessment: 63 gates with empirical saturation across 280+ perturbation runs, 11 alternative σ remaps, ABC re-synthesis, and iterative chaining. K=62 SAT exact synthesis on a 64 GiB host is in progress to settle optimality formally. Full reasoning at [`docs/lower-bounds.md`](./docs/lower-bounds.md).
 
 ## Context
 
