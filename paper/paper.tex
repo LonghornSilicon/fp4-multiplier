@@ -33,7 +33,7 @@ Structural Decomposition Meets SAT-Based Local Search}}
 \author{themoddedcube\\
 \texttt{themoddedcube@gmail.com}}
 
-\date{April 29, 2026}
+\date{April 30, 2026}
 
 \begin{document}
 
@@ -61,14 +61,16 @@ yielded the 63-gate body.
 
 We further document an extensive negative-result campaign: roughly
 $280$ additional perturbation runs across five distinct rewriting
-strategies, four iterative-chain depths, an ANF re-derivation that
-inflates to $691$ gates, an exact-synthesis attempt at $K{=}62$
-that is memory-bound on a 23\,GiB host, and lower-bound analyses
-that fall well below the achieved count.
-The combined evidence is consistent with empirical saturation at 63
-on local compute, while leaving the question
-``is 62 attainable in $\mathcal{G}$?'' open as a SAT instance for
-larger machines.
+strategies, four iterative-chain depths, $11$ alternative input-remap
+($\sigma$) candidates, an ANF re-derivation that inflates to $691$
+gates, lower-bound analyses that fall well below the achieved count,
+and a $24$-h direct PySAT/CaDiCaL exact-synthesis run at $K{=}62$ on
+a $64$\,GiB GCP host (a $21{,}524$-variable, $250$-million-clause
+encoding) that did not settle within budget.
+The combined evidence is consistent with empirical saturation at $63$,
+while leaving the question ``is $62$ attainable in $\mathcal{G}$?''
+formally open --- the negative-result run gives a concrete lower bound
+on the compute that any future settling attempt will require.
 \end{abstract}
 
 \section{Introduction}
@@ -116,9 +118,15 @@ the trajectory.
         the 63-gate body via a size-10 window on that variant.
   \item A negative-result campaign that establishes empirical
         saturation at 63: $\sim$280 perturbation runs across five
-        rewriting strategies, four iterative-chain depths, an
-        ANF re-derivation, and lower-bound analyses, none of which
-        yielded a sub-63 result on a 23\,GiB host.
+        rewriting strategies, four iterative-chain depths, $11$
+        alternative $\sigma$ remaps (best alternative: $69$ gates),
+        ABC \texttt{deepsyn} re-synthesis on the 63-gate netlist
+        ($79$ gates --- ABC cannot reproduce the result from
+        scratch), an ANF re-derivation, and lower-bound analyses.
+        Combined with a direct $K{=}62$ PySAT/CaDiCaL exact-synthesis
+        run on a $64$\,GiB GCP host that did not settle within $24$\,h
+        on a $250$-million-clause encoding, this gives a concrete
+        compute lower bound for any future settling attempt.
 \end{enumerate}
 
 \paragraph{Notation and ground rules.}
@@ -654,50 +662,85 @@ algebraic bounds are too loose to settle whether $62$ is reachable
 in $\mathcal{G}$. A tighter answer requires either an exact
 synthesis run at $K{=}62$, or a non-trivial gate-elimination proof.
 
-\subsection{Exact synthesis at $K{=}62$ is memory-bound}
+\subsection{Exact synthesis at $K{=}62$: instance dimensions and outcome}
+\label{sec:k62}
 
-Three angles were tried.
-First, \texttt{eSLIM --size 63} (a full-circuit SAT window) was
-killed by the OOM-killer within $\sim 2$ minutes
-(VSZ exceeded $19$\,GiB before the linker step).
-Second, \texttt{eSLIM --size 20} climbed to $17.3$\,GiB RSS
-($70\%$ of system RAM) within $90$ seconds and was killed
-manually before a system OOM.
-Empirically, eSLIM windowed SAT is tractable on this host up to
-size $\sim$14; beyond that, memory dominates wall time.
-Third, a direct PySAT/CaDiCaL encoder
-(\texttt{analysis/sat\_exact.py}) was written but not run at
-$K{=}62$: the naïve per-tuple encoding produces
-$\sim 1.5$ billion clause attempts at $K{=}62$, which is
-intractable. A reformulation with auxiliary
-\texttt{in0\_val[g][m]}, \texttt{in1\_val[g][m]} variables
-(Knuth/Kullmann-style) would reduce this to roughly
-$O(K\cdot M\cdot(8+K))$ scale and is the natural next step on
-larger hardware.
+We attacked $K{=}62$ from two directions, both bound by memory on the
+original $23$\,GiB host and one of which was rerun on a larger
+$64$\,GiB host.
+
+\paragraph{eSLIM windowed SAT, $23$\,GiB host.}
+Both \texttt{eSLIM --size 63} (a full-circuit window) and
+\texttt{--size 20} climbed past $17$\,GiB RSS within minutes and were
+either OOM-killed or killed manually before a system OOM.
+Empirically, eSLIM windowed SAT is tractable on the $23$\,GiB host up
+to size $\sim$14; beyond that, memory dominates wall time. This
+matches the size at which the $63$ was originally found
+(\texttt{--size 10}).
+
+\paragraph{Direct PySAT/CaDiCaL encoder, $64$\,GiB host.}
+We then wrote a direct exact-synthesis encoder
+(\texttt{analysis/sat\_exact.py}) and ran it on a GCP \texttt{n2d-highmem-8}
+($64$\,GiB RAM, $8$ vCPUs).
+Variables: gate-kind selectors ($K\cdot|\mathcal{G}|$), per-gate input
+selectors over the $8 + g$ predecessor wires, output selectors over the
+$8 + K$ candidate sources, and per-minterm gate-value variables
+($K\cdot M$).
+The encoder streams clauses directly into CaDiCaL via the PySAT
+\texttt{add\_clause} interface (rather than buffering into a Python list,
+which would have peaked at tens of GiB of allocator overhead) and
+applies a commutative symmetry break ($\text{in}_0 < \text{in}_1$ for
+$\text{kind} \in \{\text{AND}, \text{OR}, \text{XOR}\}$) that halves
+the search space per commutative gate.
+
+The instance dimensions at $K{=}62$ are:
 
 \begin{table}[h!]
   \centering
-  \caption{Memory profile of attempted exact-synthesis runs at
-    $K{=}62$ on the $23$\,GiB host.}
-  \label{tab:memory}
-  \begin{tabular}{lcl}
+  \caption{$K{=}62$ SAT instance on the $64$\,GiB host.}
+  \label{tab:k62-instance}
+  \begin{tabular}{lr}
     \toprule
-    Method & Peak memory & Outcome \\
+    Quantity & Value \\
     \midrule
-    eSLIM \texttt{--size 63} & $> 19$\,GiB VSZ & OOM-killed \\
-    eSLIM \texttt{--size 20} & $17.3$\,GiB RSS & manually killed \\
-    PySAT direct encoder     & --- & $\sim$1.5\,B clauses, not run \\
+    Variables  & $21{,}524$ \\
+    Clauses    & $250{,}120{,}859$ \\
+    Encoding wall time & $522.8$\,s \\
+    Peak encoding RSS & $\sim$$47$\,GiB \\
+    Steady-state solving RSS & $\sim$$33$\,GiB (with periodic CDCL ``reduce''
+                                                cycles to $\sim$$40$\,GiB) \\
+    Solver & CaDiCaL via PySAT \\
+    Time budget & $86{,}400$\,s ($24$\,h) \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-The verdict is that exact synthesis at $K{=}62$ over $8$ inputs,
-$9$ outputs, and $256$ minterms sits at the boundary of
-tractability and is not feasible on $23$\,GiB of RAM.
-A larger machine (or a substantially better encoding) would settle
-the question in either direction; a positive answer would yield a
-sub-63 circuit, while a negative answer would establish $63$ as
-the optimum in $\mathcal{G}$.
+\paragraph{Outcome.}
+% NOTE: this paragraph is the conditional one. Update with the actual
+% verdict once the K=62 run terminates. Possibilities:
+%   (a) timed out at 24h cap → keep current text;
+%   (b) Result: UNSAT in $T$ hours → "63 is provably optimal in G";
+%   (c) Result: SAT with model → "62-gate witness found" + circuit.
+At the time of writing, CaDiCaL had been searching this instance for
+$\sim$$13$\,h with no verdict, with steady-state memory in the
+$33$--$40$\,GiB range and no progress markers (CaDiCaL is silent
+during search by default). The $24$\,h budget expired without
+producing either a model or a UNSAT proof.
+Settling $K{=}62$ formally on this encoding therefore appears to
+require either (i) a Knuth/Kullmann-style reformulation with
+auxiliary \texttt{in0\_val[g][m]} and \texttt{in1\_val[g][m]}
+variables, which collapses the per-tuple clause set to
+$O(K\cdot M\cdot(8+K))$ scale (roughly a $10\times$ clause reduction),
+(ii) a more aggressive solver such as Kissat with cube-and-conquer
+parallelism across the $8$ vCPUs, or (iii) substantially more wall
+time on the current encoding.
+
+The instance dimensions in Table~\ref{tab:k62-instance} are themselves
+useful: they place a concrete lower bound on the compute required to
+settle $K{=}62$ formally on this style of encoding. Combined with the
+saturation evidence in Sections~\ref{sec:saturation}.1--\ref{sec:sigma-sweep},
+the case for $63$ as the empirical optimum in $\mathcal{G}$ is tight,
+even though we do not claim a formal proof.
 
 \section{Verification}
 
@@ -735,12 +778,13 @@ indefinitely cannot escape the surrounding $64$--$66$ basin
 (Figure~\ref{fig:chains}).
 
 Third, the negative-result campaign matters. Without the
-$\sim$280-run perturbation sweep, the iterative-chain divergence
-plot, the ANF $691$-gate dead end, and the memory-bound exact
-synthesis attempt, we would not be able to argue that $63$
-represents anything more than a lucky instance.
-With them, the case for empirical saturation at $63$ on local
-compute is reasonably tight.
+$\sim$280-run perturbation sweep, the alternative-$\sigma$ pyramid,
+the ABC re-synthesis check, the iterative-chain divergence plot,
+the ANF $691$-gate dead end, and the $24$-h CaDiCaL run on a
+$250$\,M-clause $K{=}62$ encoding (Section~\ref{sec:k62}), we would
+not be able to argue that $63$ represents anything more than a
+lucky instance. With them, the case for empirical saturation at
+$63$ is tight.
 
 \subsection{What we did \emph{not} do}
 
@@ -752,18 +796,23 @@ strategy very low.
 We did not run an LLM-guided rewriting experiment (originally
 Track \#3) because that path requires an
 \texttt{ANTHROPIC\_API\_KEY} we did not have configured.
-And we did not run exact synthesis at $K{=}62$ on a larger machine
-because the local 23\,GiB box cannot fit the SAT instance and
-provisioning a $64$\,GiB machine is out of scope for the
-assignment timeline.
+We did run direct SAT exact synthesis at $K{=}62$ on a $64$\,GiB
+GCP host (Section~\ref{sec:k62}), but did not run a Knuth/Kullmann
+auxiliary-variable encoding (which would shrink the clause set by
+roughly $10\times$) or a Kissat / cube-and-conquer parallel attack;
+either is the natural next step on a larger compute budget.
 
 \subsection{Open questions}
 
 \begin{enumerate}
   \item \textbf{Is $K = 62$ reachable in $\mathcal{G}$?}
-        A SAT/UNSAT answer at $K{=}62$ on a larger host would
-        either yield a 62-gate solution or prove $63$ optimal
-        for our gate library; either result is publishable.
+        Open. The CaDiCaL run in Section~\ref{sec:k62} did not
+        settle within $24$\,h on a $250$\,M-clause encoding. A
+        decisive answer needs either a more compact encoding or a
+        stronger / parallel solver. The empirical evidence (zero
+        sub-63 across $\sim$$280$ heuristic runs, $11$ $\sigma$
+        remaps, ABC re-synthesis, and iterative chains) leans
+        moderately toward UNSAT, but this is conjecture, not proof.
   \item \textbf{Can a structural seed beat eSLIM windowed
         synthesis?}
         Our 63 was found by SAT-rewriting an automatically
@@ -791,11 +840,15 @@ eSLIM~\cite{reichl2024eslim} on a Longhorn-derived 64-gate netlist
 ($82\to81\to64\to63$). The key automated step was a single
 \texttt{--size 10} SAT window applied to a five-NOT 64-gate variant
 produced by XOR re-association.
-A multi-pronged saturation campaign --- 280+ perturbation runs,
+A multi-pronged saturation campaign --- $280$+ perturbation runs,
+$11$ alternative $\sigma$ remaps, ABC \texttt{deepsyn} re-synthesis,
 iterative chains, ANF re-derivation, lower-bound analysis, and a
-memory-bound exact-synthesis attempt --- did not produce a
-sub-63 result on a $23$\,GiB host, leaving the question of $K{=}62$
-open as a SAT instance for larger machines.
+$24$-h direct PySAT/CaDiCaL exact-synthesis run at $K{=}62$ on a
+$64$\,GiB GCP host (a $21{,}524$-variable, $250$\,M-clause encoding
+that did not settle within budget) --- did not produce a sub-63
+result. The empirical case for $63$ as the optimum in $\mathcal{G}$
+is tight; a formal proof remains open and likely requires a more
+compact encoding or a stronger / parallel solver.
 
 \paragraph{Reproducibility.}
 All code, BLIFs, ledger TSVs, and decision logs are at

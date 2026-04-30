@@ -214,3 +214,56 @@ All 11 sigma candidates tested via ABC deepsyn + eSLIM pyramid on top 2:
 - Size=10 SAT windows time out on 69-gate circuits on this 4-core ARM box.
 - The longhorn sigma remains uniquely good for eSLIM — its specific structure enables the size=10 SAT window to find 63.
 - Next step: K=62 SAT exact synthesis on ≥64 GiB machine (GCP Brev box being provisioned).
+
+## 2026-04-29 → 2026-04-30 — K=62 SAT exact synthesis on GCP n2d-highmem-8
+
+Resumed on a GCP `n2d-highmem-8` (`brev-me8kb7265`, 8 vCPUs, 62 GiB RAM,
+no swap). Toolchain: `python-sat[pblib,aiger]` via pip; CaDiCaL103 backend.
+
+**Encoder fixes** (commit 6ab27d4) before launching the run:
+
+1. `CnfBuilder` streams clauses directly into the solver via
+   `solver.add_clause()` instead of buffering into a Python list. The
+   buffered list was the memory bottleneck on the 23 GiB Oracle box
+   (estimated ~50 GB of Python list overhead at K=62).
+2. Forbid `in0_idx >= in1_idx` when kind is `{AND, OR, XOR}`. Halves the
+   per-commutative-gate search space and rules out trivial
+   `AND(x,x)`/`OR(x,x)`/`XOR(x,x)`.
+
+**K=62 instance** (after 522.8 s encoding):
+- vars = 21,524
+- clauses = 250,120,859
+- Peak encoding RSS: ~47 GiB
+- Steady-state solving RSS: ~33 GiB (with periodic CDCL "reduce" cycles
+  to ~40 GiB; one growth event observed at ~12 h elapsed)
+- Solver: CaDiCaL via PySAT, single-threaded
+- Time budget: 86,400 s (24 h)
+
+**Outcome (as of 2026-04-30, mid-run):** CaDiCaL has been searching for
+~13 h with no `Result:` line; original launcher estimate was 5–6 h, so
+we are well past the optimistic window. Memory is bounded and the
+process is healthy. The 24 h cap will fire at 20:31 UTC 2026-04-30
+regardless. Heuristic saturation evidence (280+ runs, σ' sweep, ABC
+deepsyn) makes UNSAT moderately more likely than SAT, but this is
+conjecture, not proof.
+
+**Decision (2026-04-30 ~10:00 UTC):** finalize the paper assuming the
+worst case (cap fires with no verdict), then patch one paragraph in
+Section 5.5 if the result lands. Reasoning: the 63 → 62 gap is a 1.6%
+gate reduction; the publishable contribution is the methodology +
+saturation campaign, not the specific number. Spending another 10 h
+hoping for a verdict is gambling on a low-probability marginal win.
+
+**Side work during the SAT wait:**
+- LonghornSilicon repo branch `63-gate-eslim-size10` pushed to
+  `LonghornSilicon/fp4-multiplier` (collaborator access). Adds the
+  63-gate `src/fp4_mul.{blif,py}` and `submission/colab_paste.py`,
+  preserves the 64-gate canonical as `.64gate_backup`. README documents
+  the 64 → 63 step (5-NOT 64-gate variant + eSLIM `--size 10
+  --seed 1024`).
+- Paper Section 5.4 ("Alternative σ remaps saturate above 63") added
+  in commit 5b4e191.
+- Paper Section 5.5 rewritten from "memory-bound on 23 GiB host" to
+  "K=62 instance dimensions and outcome" with the actual run profile
+  (commit upcoming). Worst-case version assumes cap-with-no-verdict;
+  swap one paragraph if the actual outcome differs.
