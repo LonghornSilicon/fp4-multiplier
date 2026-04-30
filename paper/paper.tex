@@ -716,16 +716,15 @@ The instance dimensions at $K{=}62$ are:
 \end{table}
 
 \paragraph{Outcome.}
-% NOTE: this paragraph is the conditional one. Update with the actual
-% verdict once the K=62 run terminates. Possibilities:
-%   (a) timed out at 24h cap → keep current text;
-%   (b) Result: UNSAT in $T$ hours → "63 is provably optimal in G";
-%   (c) Result: SAT with model → "62-gate witness found" + circuit.
-At the time of writing, CaDiCaL had been searching this instance for
-$\sim$$13$\,h with no verdict, with steady-state memory in the
-$33$--$40$\,GiB range and no progress markers (CaDiCaL is silent
-during search by default). The $24$\,h budget expired without
-producing either a model or a UNSAT proof.
+CaDiCaL searched this instance for the full $24$\,h budget without
+producing either a model or a UNSAT proof; the wrapper killed it at
+the timeout (\texttt{EXIT=124}). Steady-state memory stayed in the
+$31$--$40$\,GiB range across the run, with periodic CDCL ``reduce''
+cycles dropping the resident set by $\sim$$8$\,GiB before climbing
+back up. CaDiCaL is silent during search by default and emits no
+progress statistics, so we have no measurement of decisions or
+conflicts internal to the run --- only that no terminal verdict was
+reached.
 Settling $K{=}62$ formally on this encoding therefore appears to
 require either (i) a Knuth/Kullmann-style reformulation with
 auxiliary \texttt{in0\_val[g][m]} and \texttt{in1\_val[g][m]}

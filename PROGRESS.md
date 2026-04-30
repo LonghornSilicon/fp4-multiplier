@@ -239,13 +239,17 @@ no swap). Toolchain: `python-sat[pblib,aiger]` via pip; CaDiCaL103 backend.
 - Solver: CaDiCaL via PySAT, single-threaded
 - Time budget: 86,400 s (24 h)
 
-**Outcome (as of 2026-04-30, mid-run):** CaDiCaL has been searching for
-~13 h with no `Result:` line; original launcher estimate was 5–6 h, so
-we are well past the optimistic window. Memory is bounded and the
-process is healthy. The 24 h cap will fire at 20:31 UTC 2026-04-30
-regardless. Heuristic saturation evidence (280+ runs, σ' sweep, ABC
-deepsyn) makes UNSAT moderately more likely than SAT, but this is
-conjecture, not proof.
+**Outcome (final, 2026-04-30 20:31 UTC):** CaDiCaL ran to the full 24 h
+budget without producing either a model or a UNSAT proof. Wrapper
+killed the process at the timeout (`EXIT=124`). Steady-state RSS
+stayed in the 31–40 GiB range across the run, with CDCL "reduce"
+cycles dropping ~8 GiB periodically before climbing back. No internal
+progress stats were ever emitted (CaDiCaL is silent by default).
+**Worst-case scenario realized.** The auto-launcher script
+(`analysis/sat_k61_autolaunch.sh`) detected `EXIT=` without
+`Result: SAT` and terminated without launching K=61 — correct
+behavior, since UNSAT at K=62 would have implied UNSAT at K<62
+trivially (and timeout doesn't change the priors).
 
 **Decision (2026-04-30 ~10:00 UTC):** finalize the paper assuming the
 worst case (cap fires with no verdict), then patch one paragraph in
